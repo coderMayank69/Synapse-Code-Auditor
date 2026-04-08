@@ -3,4 +3,4 @@ name: synapse_code_auditor
 type: space
 runtime: fastapi
 app: app.main:app
-port: 8000
+port: 7860

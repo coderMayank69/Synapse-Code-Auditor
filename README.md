@@ -1,3 +1,9 @@
+---
+title: Synapse Code Auditor
+sdk: docker
+app_port: 7860
+---
+
 # Synapse Code Auditor (OpenEnv Environment)
 
 Synapse Code Auditor is a production-ready OpenEnv environment for evaluating AI code-review behavior across deterministic tasks.
@@ -10,6 +16,8 @@ Software teams use code review to catch bugs, improve quality, and enforce maint
 
 ```text
 .
+├── inference.py
+├── validate_submission.py
 ├── app/
 │   ├── __init__.py
 │   ├── env.py
@@ -107,7 +115,7 @@ pip install -r requirements.txt
 ### 2. Run FastAPI server
 
 ```bash
-uvicorn app.main:app --host 0.0.0.0 --port 8000
+uvicorn app.main:app --host 0.0.0.0 --port 7860
 ```
 
 ### 3. Validate OpenEnv manifest
@@ -120,35 +128,65 @@ openenv validate
 
 ```bash
 docker build -t synapse-code-auditor .
-docker run --rm -p 8000:8000 synapse-code-auditor
+docker run --rm -p 7860:7860 synapse-code-auditor
 ```
 
 Then test:
 
 ```bash
-curl http://localhost:8000/health
-curl -X POST http://localhost:8000/reset -H "Content-Type: application/json" -d "{\"task_id\":\"easy\",\"seed\":42}"
+curl http://localhost:7860/health
+curl -X POST http://localhost:7860/reset -H "Content-Type: application/json" -d "{\"task_id\":\"easy\",\"seed\":42}"
 ```
 
 ## Baseline Inference Script
 
-The baseline runner uses an OpenAI-compatible client and executes all 3 tasks.
+The baseline runner is `inference.py` at the project root. It uses the OpenAI client and executes all 3 tasks.
 
 Required environment variables:
 
-- OPENAI_API_KEY: API key for model inference
-- API_BASE_URL: OpenAI-compatible API URL (default https://api.openai.com/v1)
-- MODEL_NAME: model identifier (default gpt-4o-mini)
+- API_BASE_URL: OpenAI-compatible API URL
+- MODEL_NAME: model identifier
+- HF_TOKEN: API key used by OpenAI client
 
 Optional:
 
-- ENV_BASE_URL: environment API base URL (default http://localhost:8000)
+- ENV_BASE_URL: environment API base URL (default http://localhost:7860)
+- DRY_RUN: set to `1` to skip external LLM calls and use deterministic local responses
+
+Structured logs:
+
+- `[START]` one event at run start
+- `[STEP]` one event per task
+- `[END]` one event at run finish
 
 Run:
 
 ```bash
-python app/inference.py
+python inference.py
 ```
+
+### Required env var example
+
+```bash
+export API_BASE_URL="https://api.openai.com/v1"
+export MODEL_NAME="gpt-4o-mini"
+export HF_TOKEN="your_token_here"
+export ENV_BASE_URL="http://localhost:7860"
+python inference.py
+```
+
+### Pre-submission validator
+
+```bash
+python validate_submission.py
+```
+
+Validator checks:
+
+- OpenEnv manifest keys
+- `/health`, `/reset`, `/step`, `/state` endpoint behavior
+- 3+ tasks and grader output range in `[0.0, 1.0]`
+- root `inference.py` requirements and structured logs
 
 ## Example Baseline Output
 

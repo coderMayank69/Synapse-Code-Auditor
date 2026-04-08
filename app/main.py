@@ -18,7 +18,8 @@ def health() -> dict[str, str]:
 
 
 @app.post("/reset", response_model=ResetResponse)
-def reset(request: ResetRequest) -> ResetResponse:
+def reset(request: ResetRequest | None = None) -> ResetResponse:
+    request = request or ResetRequest()
     try:
         observation = env.reset(task_id=request.task_id, seed=request.seed)
     except KeyError as exc:
