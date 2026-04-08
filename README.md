@@ -1,7 +1,13 @@
 ---
 title: Synapse Code Auditor
+emoji: "⚡"
+colorFrom: red
+colorTo: pink
 sdk: docker
 app_port: 7860
+pinned: false
+license: mit
+short_description: Code reviewer environment
 ---
 
 # Synapse Code Auditor (OpenEnv Environment)
@@ -206,7 +212,7 @@ Average score: 0.9333
 This project is container-ready and compatible with Hugging Face Docker Spaces.
 
 1. Push repository to Hugging Face Space configured for Docker.
-2. Ensure port 8000 is exposed (already set in Dockerfile and openenv.yaml).
+2. Ensure port 7860 is exposed (already set in Dockerfile and openenv.yaml).
 3. Build and run automatically in Space.
 
 OpenEnv deployment command:
