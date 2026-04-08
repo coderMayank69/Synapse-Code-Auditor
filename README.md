@@ -22,7 +22,12 @@ Software teams use code review to catch bugs, improve quality, and enforce maint
 
 ```text
 .
+├── server/
+│   ├── __init__.py
+│   └── app.py
 ├── inference.py
+├── pyproject.toml
+├── uv.lock
 ├── validate_submission.py
 ├── app/
 │   ├── __init__.py
@@ -148,7 +153,7 @@ curl -X POST http://localhost:7860/reset -H "Content-Type: application/json" -d 
 
 The baseline runner is `inference.py` at the project root. It uses the OpenAI client and executes all 3 tasks.
 
-Required environment variables:
+Required environment variables for non-dry-run execution:
 
 - API_BASE_URL: OpenAI-compatible API URL
 - MODEL_NAME: model identifier
@@ -158,6 +163,8 @@ Optional:
 
 - ENV_BASE_URL: environment API base URL (default http://localhost:7860)
 - DRY_RUN: set to `1` to skip external LLM calls and use deterministic local responses
+- API_BASE_URL: defaults to https://api.openai.com/v1 when not provided
+- MODEL_NAME: defaults to gpt-4o-mini when not provided
 
 Structured logs:
 
@@ -197,14 +204,11 @@ Validator checks:
 ## Example Baseline Output
 
 ```text
-Synapse Code Auditor baseline run
-Environment URL: http://localhost:8000
-Model endpoint: https://api.openai.com/v1
-Model: gpt-4o-mini
-- easy: score=1.0000 | Coverage=1.00; Penalty=0.00; Matched=3/3
-- medium: score=1.0000 | Coverage=1.00; Penalty=0.00; Matched=3/3
-- hard: score=0.8000 | Coverage=1.00; Penalty=0.20; Matched=5/5
-Average score: 0.9333
+[START] {"event":"run_started","env_base_url":"inprocess","task_count":3,"dry_run":true}
+[STEP] {"event":"task_completed","index":1,"task_id":"easy","score":1.0}
+[STEP] {"event":"task_completed","index":2,"task_id":"medium","score":1.0}
+[STEP] {"event":"task_completed","index":3,"task_id":"hard","score":0.9}
+[END] {"event":"run_finished","average_score":0.9667,"status":"ok"}
 ```
 
 ## Hugging Face Spaces Deployment

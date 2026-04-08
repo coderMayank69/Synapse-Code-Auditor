@@ -7,3 +7,9 @@ __pycache__/
 .env
 .git/
 .gitignore
+Synapse_Code_Auditor/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.vscode/
+.idea/
