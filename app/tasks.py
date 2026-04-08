@@ -16,9 +16,9 @@ TASKS: dict[str, TaskDefinition] = {
             "The response should mention the specific line-level issue and corrected syntax."
         ),
         criteria=[
-            ["syntax error", "invalid syntax"],
-            ["missing colon", "colon after function definition", "def line needs colon"],
-            ["def add_numbers(a, b):", "add a colon at end of function definition"],
+            ["syntax error", "invalid syntax", "parse error"],
+            ["missing colon", "colon after function definition", "def line needs colon", "function header missing :"],
+            ["def add_numbers(a, b):", "add a colon at end of function definition", "append colon to def add_numbers(a, b)"],
         ],
     ),
     "medium": TaskDefinition(
@@ -38,9 +38,9 @@ TASKS: dict[str, TaskDefinition] = {
             "Mention at least one concrete optimization strategy and why it helps."
         ),
         criteria=[
-            ["list comprehension", "comprehension"],
-            ["same behavior", "preserve behavior", "without changing output"],
-            ["readability", "cleaner", "more concise"],
+            ["list comprehension", "comprehension", "single expression"],
+            ["same behavior", "preserve behavior", "without changing output", "no behavior change", "identical output"],
+            ["readability", "cleaner", "more concise", "more readable", "clearer"],
         ],
     ),
     "hard": TaskDefinition(
@@ -64,11 +64,11 @@ TASKS: dict[str, TaskDefinition] = {
             "Include an explicit overall score in the review."
         ),
         criteria=[
-            ["division by zero", "empty list", "len(values) == 0"],
-            ["broad exception", "except Exception", "too broad catch"],
-            ["iterate directly", "avoid range(len", "pythonic loop"],
-            ["type hints", "docstring", "tests"],
-            ["overall score", "score", "rating"],
+            ["division by zero", "empty list", "len(values) == 0", "guard against empty values"],
+            ["broad exception", "except Exception", "too broad catch", "catching all exceptions"],
+            ["iterate directly", "avoid range(len", "pythonic loop", "loop over values directly"],
+            ["type hints", "docstring", "tests", "unit tests", "annotations"],
+            ["overall score", "score", "rating", "final score", "overall rating"],
         ],
     ),
 }

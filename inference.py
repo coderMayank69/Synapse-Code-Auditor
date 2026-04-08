@@ -15,6 +15,8 @@ except Exception:  # pragma: no cover
     TestClient = None
 
 TASK_IDS: list[str] = ["easy", "medium", "hard"]
+REQUEST_TIMEOUT_S = 30
+MAX_ATTEMPTS = 3
 
 
 @dataclass
@@ -61,6 +63,11 @@ def _required_env(name: str) -> str:
     return value
 
 
+def _optional_env(name: str, default: str) -> str:
+    value = os.getenv(name)
+    return value if value else default
+
+
 def _build_prompt(task_id: str, instructions: str, code: str) -> str:
     return (
         "You are a code reviewer. Complete exactly the requested review task.\n"
@@ -68,7 +75,8 @@ def _build_prompt(task_id: str, instructions: str, code: str) -> str:
         f"Instructions: {instructions}\n"
         "Code:\n"
         f"{code}\n\n"
-        "Return concise, actionable review feedback."
+        "Return concise, actionable review feedback. "
+        "Call out concrete issues, suggest a correction, and for hard tasks include an explicit overall score."
     )
 
 
@@ -89,51 +97,76 @@ def _dry_run_review(task_id: str) -> str:
     )
 
 
-def _run_task(env_base_url: str, client: OpenAI, model_name: str, task_id: str, dry_run: bool) -> TaskRun:
-    t0 = time.perf_counter()
+def _post_with_retries(env_base_url: str, session: _InProcessSession | None, path: str, payload: dict[str, Any]) -> _TestResponse | requests.Response:
+    last_error: Exception | None = None
+    for attempt in range(1, MAX_ATTEMPTS + 1):
+        try:
+            if env_base_url == "inprocess":
+                if session is None:
+                    raise RuntimeError("In-process session unavailable")
+                return session.post(path, payload)
+            return requests.post(f"{env_base_url}{path}", json=payload, timeout=REQUEST_TIMEOUT_S)
+        except Exception as exc:
+            last_error = exc
+            if attempt < MAX_ATTEMPTS:
+                time.sleep(0.4 * attempt)
+    raise RuntimeError(f"Failed POST {path} after {MAX_ATTEMPTS} attempts: {last_error}")
 
-    if env_base_url == "inprocess":
-        session = _InProcessSession()
-        reset_response = session.post("/reset", {"task_id": task_id, "seed": 42})
-    else:
-        reset_response = requests.post(
-            f"{env_base_url}/reset",
-            json={"task_id": task_id, "seed": 42},
-            timeout=30,
-        )
+
+def _run_task(env_base_url: str, client: OpenAI | None, model_name: str, task_id: str, dry_run: bool) -> TaskRun:
+    t0 = time.perf_counter()
+    session = _InProcessSession() if env_base_url == "inprocess" else None
+
+    reset_response = _post_with_retries(
+        env_base_url=env_base_url,
+        session=session,
+        path="/reset",
+        payload={"task_id": task_id, "seed": 42},
+    )
     reset_response.raise_for_status()
     observation = reset_response.json()["observation"]
 
     if dry_run:
         review = _dry_run_review(task_id)
     else:
+        if client is None:
+            raise RuntimeError("OpenAI client is not configured for non-dry-run execution")
         prompt = _build_prompt(
             task_id=observation["task_id"],
             instructions=observation["instructions"],
             code=observation["code"],
         )
-        completion = client.chat.completions.create(
-            model=model_name,
-            temperature=0,
-            seed=42,
-            messages=[
-                {
-                    "role": "system",
-                    "content": "You are an expert software engineer specializing in code review.",
-                },
-                {"role": "user", "content": prompt},
-            ],
-        )
+        completion = None
+        last_error: Exception | None = None
+        for attempt in range(1, MAX_ATTEMPTS + 1):
+            try:
+                completion = client.chat.completions.create(
+                    model=model_name,
+                    temperature=0,
+                    seed=42,
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": "You are an expert software engineer specializing in code review.",
+                        },
+                        {"role": "user", "content": prompt},
+                    ],
+                )
+                break
+            except Exception as exc:
+                last_error = exc
+                if attempt < MAX_ATTEMPTS:
+                    time.sleep(0.5 * attempt)
+        if completion is None:
+            raise RuntimeError(f"LLM completion failed after {MAX_ATTEMPTS} attempts: {last_error}")
         review = completion.choices[0].message.content or ""
 
-    if env_base_url == "inprocess":
-        step_response = session.post("/step", {"action": {"review": review}})
-    else:
-        step_response = requests.post(
-            f"{env_base_url}/step",
-            json={"action": {"review": review}},
-            timeout=30,
-        )
+    step_response = _post_with_retries(
+        env_base_url=env_base_url,
+        session=session,
+        path="/step",
+        payload={"action": {"review": review}},
+    )
     step_response.raise_for_status()
     reward = step_response.json()["reward"]
 
@@ -147,11 +180,17 @@ def _run_task(env_base_url: str, client: OpenAI, model_name: str, task_id: str, 
 
 def main() -> None:
     start_ts = int(time.time())
-    env_base_url = os.getenv("ENV_BASE_URL", "http://localhost:7860")
-    api_base_url = _required_env("API_BASE_URL")
-    model_name = _required_env("MODEL_NAME")
-    hf_token = _required_env("HF_TOKEN")
     dry_run = os.getenv("DRY_RUN", "0") == "1"
+
+    env_base_url = _optional_env("ENV_BASE_URL", "http://localhost:7860")
+    api_base_url = _optional_env("API_BASE_URL", "https://api.openai.com/v1")
+    model_name = _optional_env("MODEL_NAME", "gpt-4o-mini")
+    hf_token = os.getenv("HF_TOKEN")
+
+    if not hf_token:
+        dry_run = True
+
+    client = OpenAI(base_url=api_base_url, api_key=hf_token) if not dry_run else None
 
     _emit(
         "START",
@@ -163,41 +202,52 @@ def main() -> None:
             "model_name": model_name,
             "task_count": len(TASK_IDS),
             "dry_run": dry_run,
+            "max_attempts": MAX_ATTEMPTS,
         },
     )
 
-    client = OpenAI(base_url=api_base_url, api_key=hf_token)
+    try:
+        results: list[TaskRun] = []
+        for index, task_id in enumerate(TASK_IDS, start=1):
+            result = _run_task(env_base_url, client, model_name, task_id, dry_run)
+            results.append(result)
+            _emit(
+                "STEP",
+                {
+                    "event": "task_completed",
+                    "index": index,
+                    "task_id": result.task_id,
+                    "score": result.score,
+                    "rationale": result.rationale,
+                    "latency_s": result.latency_s,
+                },
+            )
 
-    results: list[TaskRun] = []
-    for index, task_id in enumerate(TASK_IDS, start=1):
-        result = _run_task(env_base_url, client, model_name, task_id, dry_run)
-        results.append(result)
+        avg_score = round(sum(item.score for item in results) / len(results), 4)
+        total_latency = round(sum(item.latency_s for item in results), 3)
+
         _emit(
-            "STEP",
+            "END",
             {
-                "event": "task_completed",
-                "index": index,
-                "task_id": result.task_id,
-                "score": result.score,
-                "rationale": result.rationale,
-                "latency_s": result.latency_s,
+                "event": "run_finished",
+                "timestamp": int(time.time()),
+                "average_score": avg_score,
+                "total_latency_s": total_latency,
+                "tasks": [{"task_id": r.task_id, "score": r.score} for r in results],
+                "status": "ok",
             },
         )
-
-    avg_score = round(sum(item.score for item in results) / len(results), 4)
-    total_latency = round(sum(item.latency_s for item in results), 3)
-
-    _emit(
-        "END",
-        {
-            "event": "run_finished",
-            "timestamp": int(time.time()),
-            "average_score": avg_score,
-            "total_latency_s": total_latency,
-            "tasks": [{"task_id": r.task_id, "score": r.score} for r in results],
-            "status": "ok",
-        },
-    )
+    except Exception as exc:
+        _emit(
+            "END",
+            {
+                "event": "run_finished",
+                "timestamp": int(time.time()),
+                "status": "error",
+                "error": str(exc),
+            },
+        )
+        raise
 
 
 if __name__ == "__main__":
