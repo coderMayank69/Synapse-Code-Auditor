@@ -124,17 +124,17 @@ pip install -r requirements.txt
 ```
 
 ### 2. Run FastAPI server
-
+  3+ tasks and grader output range in `(0.0, 1.0)`
 ```bash
 uvicorn app.main:app --host 0.0.0.0 --port 7860
 ```
 
 ### 3. Validate OpenEnv manifest
-
-```bash
-openenv validate
+  "score": 0.99,
+[STEP] {"event":"task_completed","index":1,"task_id":"easy","score":0.99}
+[STEP] {"event":"task_completed","index":2,"task_id":"medium","score":0.99}
 ```
-
+[END] {"event":"run_finished","average_score":0.99,"status":"ok"}
 ## Docker Run
 
 ```bash
