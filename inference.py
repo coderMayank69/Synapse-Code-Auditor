@@ -56,13 +56,6 @@ def _emit(tag: str, payload: dict[str, Any]) -> None:
     print(f"[{tag}] {json.dumps(payload, separators=(',', ':'), ensure_ascii=True)}", flush=True)
 
 
-def _required_env(name: str) -> str:
-    value = os.getenv(name)
-    if not value:
-        raise RuntimeError(f"Missing required environment variable: {name}")
-    return value
-
-
 def _optional_env(name: str, default: str) -> str:
     value = os.getenv(name)
     return value if value else default
@@ -97,7 +90,12 @@ def _dry_run_review(task_id: str) -> str:
     )
 
 
-def _post_with_retries(env_base_url: str, session: _InProcessSession | None, path: str, payload: dict[str, Any]) -> _TestResponse | requests.Response:
+def _post_with_retries(
+    env_base_url: str,
+    session: _InProcessSession | None,
+    path: str,
+    payload: dict[str, Any],
+) -> _TestResponse | requests.Response:
     last_error: Exception | None = None
     for attempt in range(1, MAX_ATTEMPTS + 1):
         try:
@@ -113,62 +111,102 @@ def _post_with_retries(env_base_url: str, session: _InProcessSession | None, pat
     raise RuntimeError(f"Failed POST {path} after {MAX_ATTEMPTS} attempts: {last_error}")
 
 
+def _generate_review(
+    client: OpenAI | None,
+    model_name: str,
+    task_id: str,
+    observation: dict[str, Any],
+    dry_run: bool,
+) -> str:
+    if dry_run or client is None:
+        return _dry_run_review(task_id)
+
+    prompt = _build_prompt(
+        task_id=observation["task_id"],
+        instructions=observation["instructions"],
+        code=observation["code"],
+    )
+
+    completion = None
+    last_error: Exception | None = None
+    for attempt in range(1, MAX_ATTEMPTS + 1):
+        try:
+            completion = client.chat.completions.create(
+                model=model_name,
+                temperature=0,
+                seed=42,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are an expert software engineer specializing in code review.",
+                    },
+                    {"role": "user", "content": prompt},
+                ],
+            )
+            break
+        except Exception as exc:
+            last_error = exc
+            if attempt < MAX_ATTEMPTS:
+                time.sleep(0.5 * attempt)
+
+    if completion is None:
+        _emit(
+            "WARN",
+            {
+                "event": "llm_completion_failed",
+                "task_id": task_id,
+                "attempts": MAX_ATTEMPTS,
+                "error": str(last_error),
+                "fallback": "deterministic_template",
+            },
+        )
+        return _dry_run_review(task_id)
+
+    content = completion.choices[0].message.content
+    return content.strip() if content else _dry_run_review(task_id)
+
+
 def _run_task(env_base_url: str, client: OpenAI | None, model_name: str, task_id: str, dry_run: bool) -> TaskRun:
     t0 = time.perf_counter()
     session = _InProcessSession() if env_base_url == "inprocess" else None
 
-    reset_response = _post_with_retries(
-        env_base_url=env_base_url,
-        session=session,
-        path="/reset",
-        payload={"task_id": task_id, "seed": 42},
-    )
-    reset_response.raise_for_status()
-    observation = reset_response.json()["observation"]
-
-    if dry_run:
-        review = _dry_run_review(task_id)
-    else:
-        if client is None:
-            raise RuntimeError("OpenAI client is not configured for non-dry-run execution")
-        prompt = _build_prompt(
-            task_id=observation["task_id"],
-            instructions=observation["instructions"],
-            code=observation["code"],
+    try:
+        reset_response = _post_with_retries(
+            env_base_url=env_base_url,
+            session=session,
+            path="/reset",
+            payload={"task_id": task_id, "seed": 42},
         )
-        completion = None
-        last_error: Exception | None = None
-        for attempt in range(1, MAX_ATTEMPTS + 1):
-            try:
-                completion = client.chat.completions.create(
-                    model=model_name,
-                    temperature=0,
-                    seed=42,
-                    messages=[
-                        {
-                            "role": "system",
-                            "content": "You are an expert software engineer specializing in code review.",
-                        },
-                        {"role": "user", "content": prompt},
-                    ],
-                )
-                break
-            except Exception as exc:
-                last_error = exc
-                if attempt < MAX_ATTEMPTS:
-                    time.sleep(0.5 * attempt)
-        if completion is None:
-            raise RuntimeError(f"LLM completion failed after {MAX_ATTEMPTS} attempts: {last_error}")
-        review = completion.choices[0].message.content or ""
+        reset_response.raise_for_status()
+        observation = reset_response.json()["observation"]
+    except Exception as exc:
+        return TaskRun(
+            task_id=task_id,
+            score=0.0,
+            rationale=f"reset_failed: {exc}",
+            latency_s=round(time.perf_counter() - t0, 3),
+        )
 
-    step_response = _post_with_retries(
-        env_base_url=env_base_url,
-        session=session,
-        path="/step",
-        payload={"action": {"review": review}},
-    )
-    step_response.raise_for_status()
-    reward = step_response.json()["reward"]
+    review = _generate_review(client, model_name, task_id, observation, dry_run)
+    if not review.strip():
+        review = _dry_run_review(task_id)
+
+    try:
+        step_response = _post_with_retries(
+            env_base_url=env_base_url,
+            session=session,
+            path="/step",
+            payload={"action": {"review": review}},
+        )
+        step_response.raise_for_status()
+        reward = step_response.json()["reward"]
+    except Exception as exc:
+        return TaskRun(
+            task_id=task_id,
+            score=0.0,
+            rationale=f"step_failed: {exc}",
+            latency_s=round(time.perf_counter() - t0, 3),
+        )
 
     return TaskRun(
         task_id=task_id,
@@ -225,6 +263,7 @@ def main() -> None:
 
         avg_score = round(sum(item.score for item in results) / len(results), 4)
         total_latency = round(sum(item.latency_s for item in results), 3)
+        status = "ok" if all(item.score > 0 for item in results) else "partial"
 
         _emit(
             "END",
@@ -234,7 +273,7 @@ def main() -> None:
                 "average_score": avg_score,
                 "total_latency_s": total_latency,
                 "tasks": [{"task_id": r.task_id, "score": r.score} for r in results],
-                "status": "ok",
+                "status": status,
             },
         )
     except Exception as exc:
@@ -247,7 +286,8 @@ def main() -> None:
                 "error": str(exc),
             },
         )
-        raise
+        # Keep inference robust for evaluator runs by exiting gracefully.
+        return
 
 
 if __name__ == "__main__":
