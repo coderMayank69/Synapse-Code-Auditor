@@ -12,6 +12,9 @@ _IRRELEVANT_MARKERS = {
     "politics",
 }
 
+_MIN_SCORE = 0.01
+_MAX_SCORE = 0.99
+
 
 def _normalize(text: str) -> str:
     return " ".join(re.findall(r"[a-z0-9_+.#-]+", text.lower()))
@@ -56,7 +59,9 @@ def grade_review(task: TaskDefinition, review: str) -> GradeResult:
         penalties["missing_overall_score"] = 0.10
 
     total_penalty = sum(penalties.values())
-    final_score = max(0.0, min(1.0, coverage_score - total_penalty))
+    raw_score = coverage_score - total_penalty
+    # Keep scores strictly within (0, 1) for evaluator compatibility.
+    final_score = max(_MIN_SCORE, min(_MAX_SCORE, raw_score))
 
     rationale = (
         f"Coverage={coverage_score:.2f}; Penalty={total_penalty:.2f}; "

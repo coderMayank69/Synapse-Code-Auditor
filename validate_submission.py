@@ -65,7 +65,7 @@ def _check_tasks_and_graders() -> None:
     for task_id, task in TASKS.items():
         review = sample_reviews.get(task_id, "Provide relevant code review feedback with score.")
         result = grade_review(task, review)
-        assert 0.0 <= result.score <= 1.0, f"Score out of range for {task_id}: {result.score}"
+        assert 0.0 < result.score < 1.0, f"Score out of strict range for {task_id}: {result.score}"
 
 
 def _check_inference_script(path: Path) -> None:
