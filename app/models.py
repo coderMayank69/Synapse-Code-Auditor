@@ -23,7 +23,7 @@ class Action(BaseModel):
 
 
 class Reward(BaseModel):
-    score: float = Field(ge=0.0, le=1.0)
+    score: float = Field(gt=0.0, lt=1.0)
     matched_criteria: list[str]
     missed_criteria: list[str]
     penalties: dict[str, float]
@@ -75,7 +75,7 @@ class TaskDefinition(BaseModel):
 
 
 class GradeResult(BaseModel):
-    score: float
+    score: float = Field(gt=0.0, lt=1.0)
     matched_criteria: list[str]
     missed_criteria: list[str]
     penalties: dict[str, float]

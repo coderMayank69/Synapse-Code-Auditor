@@ -14,6 +14,7 @@ from app.models import (
     StepRequest,
     StepResult,
 )
+from app.tasks import TASKS
 
 app = FastAPI(
     title="Synapse Code Auditor",
@@ -45,6 +46,16 @@ def metadata() -> dict[str, Any]:
         "name": app.title,
         "description": app.description,
         "version": app.version,
+        "task_count": len(TASKS),
+        "tasks": [
+            {
+                "task_id": task.id,
+                "task_type": task.task_type,
+                "has_grader": True,
+                "criteria_count": len(task.criteria),
+            }
+            for task in TASKS.values()
+        ],
     }
 
 
