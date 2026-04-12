@@ -15,6 +15,19 @@ from app.main import app
 from app.tasks import TASKS
 
 
+def _floats_bad(obj: object) -> list[float]:
+    bad: list[float] = []
+    if isinstance(obj, float) and (obj == 0.0 or obj == 1.0):
+        bad.append(obj)
+    elif isinstance(obj, dict):
+        for v in obj.values():
+            bad.extend(_floats_bad(v))
+    elif isinstance(obj, list):
+        for item in obj:
+            bad.extend(_floats_bad(item))
+    return bad
+
+
 def _check_openenv_yaml(path: Path) -> None:
     content = path.read_text(encoding="utf-8")
     required = ["spec_version:", "name:", "type:", "runtime:", "app:", "port:"]
@@ -102,6 +115,20 @@ def _check_metadata_graders() -> None:
         if isinstance(t, dict) and (t.get("has_grader") is True or t.get("grader_enabled") is True)
     )
     assert graded >= 3, "metadata must expose at least 3 tasks with graders enabled"
+    with_grader_obj = sum(
+        1
+        for t in tasks
+        if isinstance(t, dict)
+        and isinstance(t.get("grader"), dict)
+        and t["grader"].get("enabled") is True
+    )
+    assert with_grader_obj >= 3, "metadata.tasks must each expose grader.enabled=true (hub Phase-2)"
+    meta_graders = payload.get("graders")
+    assert isinstance(meta_graders, list) and len(meta_graders) >= 3, "metadata.graders must list >=3 entries"
+    assert sum(1 for g in meta_graders if isinstance(g, dict) and g.get("enabled") is True) >= 3
+    nested = (payload.get("grading") or {}).get("graders")
+    assert isinstance(nested, list) and len(nested) >= 3
+    assert sum(1 for g in nested if isinstance(g, dict) and g.get("enabled") is True) >= 3
 
 
 def _check_tasks_endpoint() -> None:
@@ -124,18 +151,6 @@ def _check_tasks_endpoint() -> None:
     manifest = client.get("/openenv.yaml")
     assert manifest.status_code == 200, f"/openenv.yaml returned {manifest.status_code}"
     assert b"has_grader:" in manifest.content or b"grader:" in manifest.content
-
-    def _floats_bad(obj: object) -> list[float]:
-        bad: list[float] = []
-        if isinstance(obj, float) and (obj == 0.0 or obj == 1.0):
-            bad.append(obj)
-        elif isinstance(obj, dict):
-            for v in obj.values():
-                bad.extend(_floats_bad(v))
-        elif isinstance(obj, list):
-            for item in obj:
-                bad.extend(_floats_bad(item))
-        return bad
 
     for t in task_list:
         if isinstance(t, dict) and _floats_bad(t):
@@ -173,12 +188,18 @@ def _check_api_contracts() -> None:
         },
     )
     assert step.status_code == 200, f"/step returned {step.status_code}"
-    reward = step.json().get("reward") or {}
+    step_body = step.json()
+    if _floats_bad(step_body):
+        raise AssertionError(f"/step JSON must not contain float 0.0 or 1.0 anywhere: {step_body}")
+    reward = step_body.get("reward") or {}
     score = float(reward.get("score", -1.0))
     assert 0.0 < score < 1.0, f"/step reward score must be strictly in (0, 1), got {reward.get('score')}"
 
     state = client.get("/state")
     assert state.status_code == 200, f"/state returned {state.status_code}"
+    state_body = state.json()
+    if _floats_bad(state_body):
+        raise AssertionError(f"/state JSON must not contain float 0.0 or 1.0 anywhere: {state_body}")
 
 
 def _check_tasks_and_graders() -> None:

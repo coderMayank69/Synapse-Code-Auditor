@@ -12,6 +12,7 @@ description: >
 
 tasks:
   - id: easy
+    task_id: easy
     name: Detect syntax errors
     difficulty: easy
     max_steps: 1
@@ -19,6 +20,7 @@ tasks:
     has_grader: true
     score_range: [0.01, 0.99]
   - id: medium
+    task_id: medium
     name: Suggest optimization
     difficulty: medium
     max_steps: 1
@@ -26,6 +28,7 @@ tasks:
     has_grader: true
     score_range: [0.01, 0.99]
   - id: hard
+    task_id: hard
     name: Full code review with scoring
     difficulty: hard
     max_steps: 1
@@ -43,15 +46,18 @@ endpoints:
   step: POST /step
   state: GET /state
 
-# Top-level graders (some validators scan for this key and `task:` aliases).
+# Top-level graders (task_id + task aliases for static hub scanners).
 graders:
-  - task: easy
+  - task_id: easy
+    task: easy
     enabled: true
     type: deterministic
-  - task: medium
+  - task_id: medium
+    task: medium
     enabled: true
     type: deterministic
-  - task: hard
+  - task_id: hard
+    task: hard
     enabled: true
     type: deterministic
 
@@ -60,8 +66,14 @@ grading:
   deterministic: true
   graders:
     - task_id: easy
+      task: easy
       type: deterministic
+      enabled: true
     - task_id: medium
+      task: medium
       type: deterministic
+      enabled: true
     - task_id: hard
+      task: hard
       type: deterministic
+      enabled: true
