@@ -84,13 +84,15 @@ Reward:
 
 ```json
 {
-  "score": 1.0,
+  "score": 0.99,
   "matched_criteria": ["syntax error", "missing colon", "def add_numbers(a, b):"],
   "missed_criteria": [],
   "penalties": {},
-  "rationale": "Coverage=1.00; Penalty=0.00; Matched=3/3"
+  "rationale": "Coverage=0.99; Penalty=0.00; Matched=3/3"
 }
 ```
+
+Scores are always strictly between **0** and **1** (implemented as **0.01 … 0.99**), never exactly `0.0` or `1.0`.
 
 ## Tasks
 
@@ -98,7 +100,7 @@ Reward:
 2. Medium: Suggest optimization
 3. Hard: Full code review with scoring
 
-Each task has deterministic grading criteria and a score range of 0.0 to 1.0.
+Each task has deterministic grading criteria; rewards are clamped to **(0, 1)** (here **0.01–0.99**).
 
 ## Deterministic Grader and Reward Design
 
@@ -110,7 +112,8 @@ Each task has deterministic grading criteria and a score range of 0.0 to 1.0.
 Reward formula:
 
 ```text
-score = clamp(criterion_coverage - penalties, 0.0, 1.0)
+raw = criterion_coverage - penalties
+score = clamp(raw, 0.01, 0.99)
 ```
 
 ## Local Setup
@@ -124,17 +127,13 @@ pip install -r requirements.txt
 ```
 
 ### 2. Run FastAPI server
-  3+ tasks and grader output range in `(0.0, 1.0)`
+
+Requires **3+** tasks with graders; each reward score must lie strictly in **(0, 1)**.
+
 ```bash
 uvicorn app.main:app --host 0.0.0.0 --port 7860
 ```
 
-### 3. Validate OpenEnv manifest
-  "score": 0.99,
-[STEP] {"event":"task_completed","index":1,"task_id":"easy","score":0.99}
-[STEP] {"event":"task_completed","index":2,"task_id":"medium","score":0.99}
-```
-[END] {"event":"run_finished","average_score":0.99,"status":"ok"}
 ## Docker Run
 
 ```bash
@@ -198,17 +197,17 @@ Validator checks:
 
 - OpenEnv manifest keys
 - `/health`, `/reset`, `/step`, `/state` endpoint behavior
-- 3+ tasks and grader output range in `[0.0, 1.0]`
+- 3+ tasks with graders; each score strictly in **(0, 1)** (e.g. **0.01–0.99**)
 - root `inference.py` requirements and structured logs
 
 ## Example Baseline Output
 
 ```text
 [START] {"event":"run_started","env_base_url":"inprocess","task_count":3,"dry_run":true}
-[STEP] {"event":"task_completed","index":1,"task_id":"easy","score":1.0}
-[STEP] {"event":"task_completed","index":2,"task_id":"medium","score":1.0}
-[STEP] {"event":"task_completed","index":3,"task_id":"hard","score":0.9}
-[END] {"event":"run_finished","average_score":0.9667,"status":"ok"}
+[STEP] {"event":"task_completed","index":1,"task_id":"easy","score":0.99}
+[STEP] {"event":"task_completed","index":2,"task_id":"medium","score":0.99}
+[STEP] {"event":"task_completed","index":3,"task_id":"hard","score":0.86}
+[END] {"event":"run_finished","average_score":0.9467,"status":"ok"}
 ```
 
 ## Hugging Face Spaces Deployment

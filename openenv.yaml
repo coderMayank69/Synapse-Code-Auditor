@@ -16,7 +16,9 @@ tasks:
     name: Detect syntax errors
     difficulty: easy
     max_steps: 1
-    grader: true
+    grader:
+      type: deterministic
+      enabled: true
     has_grader: true
     score_range: [0.01, 0.99]
   - id: medium
@@ -24,7 +26,9 @@ tasks:
     name: Suggest optimization
     difficulty: medium
     max_steps: 1
-    grader: true
+    grader:
+      type: deterministic
+      enabled: true
     has_grader: true
     score_range: [0.01, 0.99]
   - id: hard
@@ -32,7 +36,9 @@ tasks:
     name: Full code review with scoring
     difficulty: hard
     max_steps: 1
-    grader: true
+    grader:
+      type: deterministic
+      enabled: true
     has_grader: true
     score_range: [0.01, 0.99]
 

@@ -28,6 +28,28 @@ def _floats_bad(obj: object) -> list[float]:
     return bad
 
 
+def _check_repo_docs_no_disallowed_score_literals(root: Path) -> None:
+    """Some hub Phase-2 checks statically scan the repo for example scores of exactly 0.0 or 1.0."""
+    forbidden = (
+        '"score": 1.0',
+        '"score":1.0',
+        '"score": 0.0',
+        '"score":0.0',
+        '"average_score": 1.0',
+        '"average_score":1.0',
+        '"average_score": 0.0',
+        '"average_score":0.0',
+    )
+    for rel in ("README.md", "infer_out.txt"):
+        path = root / rel
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8")
+        hits = [tok for tok in forbidden if tok in text]
+        if hits:
+            raise AssertionError(f"{rel} contains disallowed score literals for hub scan: {hits}")
+
+
 def _check_openenv_yaml(path: Path) -> None:
     content = path.read_text(encoding="utf-8")
     required = ["spec_version:", "name:", "type:", "runtime:", "app:", "port:"]
@@ -48,12 +70,19 @@ def _check_openenv_yaml(path: Path) -> None:
     if not isinstance(tasks, list) or len(tasks) < 3:
         raise AssertionError("openenv.yaml must include a tasks: list with at least 3 entries")
 
-    tasks_with_grader = sum(
-        1
-        for t in tasks
-        if isinstance(t, dict)
-        and (t.get("grader") is True or t.get("has_grader") is True)
-    )
+    def _yaml_task_has_grader(t: object) -> bool:
+        if not isinstance(t, dict):
+            return False
+        if t.get("has_grader") is True:
+            return True
+        g = t.get("grader")
+        if g is True:
+            return True
+        if isinstance(g, dict) and (g.get("enabled") is True or g.get("type") == "deterministic"):
+            return True
+        return False
+
+    tasks_with_grader = sum(1 for t in tasks if _yaml_task_has_grader(t))
     grading = data.get("grading")
     nested_graders: list = []
     if isinstance(grading, dict):
@@ -299,6 +328,7 @@ def _run_inference_dry_run(root: Path) -> None:
 def main() -> None:
     root = Path(__file__).resolve().parent
 
+    _check_repo_docs_no_disallowed_score_literals(root)
     _check_openenv_yaml(root / "openenv.yaml")
     _check_graders_json(root / "graders.json")
     _check_task_definitions_have_grader()
