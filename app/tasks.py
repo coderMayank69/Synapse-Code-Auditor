@@ -5,6 +5,7 @@ TASKS: dict[str, TaskDefinition] = {
     "easy": TaskDefinition(
         id="easy",
         task_type=TaskType.EASY,
+        has_grader=True,
         title="Detect syntax errors",
         code=(
             "def add_numbers(a, b)\n"
@@ -24,6 +25,7 @@ TASKS: dict[str, TaskDefinition] = {
     "medium": TaskDefinition(
         id="medium",
         task_type=TaskType.MEDIUM,
+        has_grader=True,
         title="Suggest optimization",
         code=(
             "def squared_evens(numbers):\n"
@@ -46,6 +48,7 @@ TASKS: dict[str, TaskDefinition] = {
     "hard": TaskDefinition(
         id="hard",
         task_type=TaskType.HARD,
+        has_grader=True,
         title="Full code review with scoring",
         code=(
             "def average(values):\n"

@@ -75,6 +75,8 @@ class TaskDefinition(BaseModel):
     code: str
     instructions: str
     criteria: list[list[str]]
+    # Explicit flag for static validators / hub scanners that inspect task definitions.
+    has_grader: bool = True
 
 
 class GradeResult(BaseModel):

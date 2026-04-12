@@ -38,6 +38,7 @@ endpoints:
   metadata: GET /metadata
   tasks: GET /tasks
   manifest: GET /openenv.yaml
+  graders_manifest: GET /graders.json
   reset: POST /reset
   step: POST /step
   state: GET /state

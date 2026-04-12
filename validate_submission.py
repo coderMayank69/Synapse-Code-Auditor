@@ -62,9 +62,29 @@ def _check_openapi_reward_schema() -> None:
     client = TestClient(app)
     r = client.get("/openapi.json")
     assert r.status_code == 200
+    raw = json.dumps(r.json())
+    # Reject the old Pydantic pattern that embeds 0.0/1.0 as exclusive bounds on score.
+    assert '"exclusiveMinimum": 0.0' not in raw and '"exclusiveMaximum": 1.0' not in raw, (
+        "OpenAPI must not expose exclusive bounds 0.0/1.0 on scores (hub static validation)"
+    )
     data = r.json()
     reward = data["components"]["schemas"]["Reward"]["properties"]["score"]
     assert reward.get("minimum") == 0.01 and reward.get("maximum") == 0.99
+
+
+def _check_graders_json(path: Path) -> None:
+    assert path.is_file(), "graders.json is required at repository root for hub scanners"
+    data = json.loads(path.read_text(encoding="utf-8"))
+    assert data.get("tasks_with_graders", 0) >= 3
+    graders = data.get("graders")
+    assert isinstance(graders, list) and len(graders) >= 3
+    enabled = sum(1 for g in graders if isinstance(g, dict) and g.get("enabled") is True)
+    assert enabled >= 3, "graders.json must list at least 3 enabled graders"
+
+
+def _check_task_definitions_have_grader() -> None:
+    for task_id, task in TASKS.items():
+        assert task.has_grader is True, f"task {task_id} must have has_grader=True"
 
 
 def _check_metadata_graders() -> None:
@@ -120,6 +140,11 @@ def _check_tasks_endpoint() -> None:
             raise AssertionError(
                 f"/tasks task payload must not contain 0.0 or 1.0 floats (strict grader rules): {t}"
             )
+
+    gm = client.get("/graders.json")
+    assert gm.status_code == 200, f"/graders.json returned {gm.status_code}"
+    gdata = gm.json()
+    assert len(gdata.get("graders", [])) >= 3
 
 
 def _check_api_contracts() -> None:
@@ -229,6 +254,8 @@ def main() -> None:
     root = Path(__file__).resolve().parent
 
     _check_openenv_yaml(root / "openenv.yaml")
+    _check_graders_json(root / "graders.json")
+    _check_task_definitions_have_grader()
     _check_openapi_reward_schema()
     _check_metadata_graders()
     _check_tasks_endpoint()

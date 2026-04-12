@@ -1,0 +1,15 @@
+{
+  "spec_version": 1,
+  "environment": "synapse_code_auditor",
+  "tasks_with_graders": 3,
+  "graders": [
+    { "task_id": "easy", "kind": "deterministic", "enabled": true },
+    { "task_id": "medium", "kind": "deterministic", "enabled": true },
+    { "task_id": "hard", "kind": "deterministic", "enabled": true }
+  ],
+  "score_policy": {
+    "min": 0.01,
+    "max": 0.99,
+    "strictly_between_zero_and_one": true
+  }
+}

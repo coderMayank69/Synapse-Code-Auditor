@@ -20,6 +20,7 @@ from app.tasks import TASKS
 # Repo root (contains openenv.yaml) — /app in Docker, project dir locally.
 _ENV_ROOT = Path(__file__).resolve().parent.parent
 _OPENENV_PATH = _ENV_ROOT / "openenv.yaml"
+_GRADERS_JSON_PATH = _ENV_ROOT / "graders.json"
 
 app = FastAPI(
     title="Synapse Code Auditor",
@@ -56,8 +57,8 @@ def metadata() -> dict[str, Any]:
             {
                 "task_id": task.id,
                 "task_type": task.task_type.value,
-                "has_grader": True,
-                "grader_enabled": True,
+                "has_grader": task.has_grader,
+                "grader_enabled": task.has_grader,
                 "criteria_count": len(task.criteria),
             }
             for task in TASKS.values()
@@ -80,7 +81,7 @@ def list_tasks() -> dict[str, Any]:
                 "task_id": task.id,
                 "task_type": task.task_type.value,
                 "title": task.title,
-                "has_grader": True,
+                "has_grader": task.has_grader,
                 "grader": {"type": "deterministic", "enabled": True},
                 # Use numeric bounds strictly inside (0, 1); some validators reject
                 # any 0.0/1.0 floats anywhere under task payloads.
@@ -89,6 +90,18 @@ def list_tasks() -> dict[str, Any]:
             for task in TASKS.values()
         ],
     }
+
+
+@app.get("/graders.json")
+def graders_manifest() -> FileResponse:
+    """Static grader manifest for hub validators that fetch JSON from the running Space."""
+    if not _GRADERS_JSON_PATH.is_file():
+        raise HTTPException(status_code=404, detail="graders.json not found in environment root")
+    return FileResponse(
+        _GRADERS_JSON_PATH,
+        media_type="application/json",
+        filename="graders.json",
+    )
 
 
 @app.get("/openenv.yaml")

@@ -263,7 +263,7 @@ def main() -> None:
                     "event": "task_completed",
                     "index": index,
                     "task_id": result.task_id,
-                    "score": result.score,
+                    "score": round(float(result.score), 4),
                     "rationale": result.rationale,
                     "latency_s": result.latency_s,
                 },
@@ -280,7 +280,9 @@ def main() -> None:
                 "timestamp": int(time.time()),
                 "average_score": avg_score,
                 "total_latency_s": total_latency,
-                "tasks": [{"task_id": r.task_id, "score": r.score} for r in results],
+                "tasks": [
+                    {"task_id": r.task_id, "score": round(float(r.score), 4)} for r in results
+                ],
                 "status": status,
             },
         )
