@@ -1,3 +1,41 @@
-.venv/
+# Python
 __pycache__/
-Synapse_Code_Auditor/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+*.log
+
+# Next.js / Node
+landing/node_modules/
+landing/.next/
+landing/out/
+landing/.env.local
+landing/.env.*.local
+landing/npm-debug.log*
+landing/yarn-debug.log*
+landing/yarn-error.log*
+
+# Env files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/settings.json
+.idea/
+
+# Lock files (keep package-lock, exclude uv.lock from display noise)
+# uv.lock is committed intentionally
