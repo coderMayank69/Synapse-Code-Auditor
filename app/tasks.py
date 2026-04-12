@@ -6,71 +6,73 @@ TASKS: dict[str, TaskDefinition] = {
         id="easy",
         task_type=TaskType.EASY,
         has_grader=True,
-        title="Detect syntax errors",
+        title="Detect SQL Injection Vulnerability",
         code=(
-            "def add_numbers(a, b)\n"
-            "    result = a + b\n"
-            "    return result\n"
+            "def authenticate_user(username, password, db_cursor):\n"
+            "    query = f\"SELECT * FROM users WHERE username = '{username}' AND password = '{password}'\"\n"
+            "    db_cursor.execute(query)\n"
+            "    return db_cursor.fetchone()\n"
         ),
         instructions=(
-            "Identify the exact syntax error in the code and propose a valid fix. "
-            "The response should mention the specific line-level issue and corrected syntax."
+            "Identify the critical security vulnerability in this authentication code and propose a secure fix. "
+            "Mention the exact vulnerability name and standard mitigation technique."
         ),
         criteria=[
-            ["syntax error", "invalid syntax", "parse error"],
-            ["missing colon", "colon after function definition", "def line needs colon", "function header missing :"],
-            ["def add_numbers(a, b):", "add a colon at end of function definition", "append colon to def add_numbers(a, b)"],
+            ["sql injection", "sqli", "injection attack"],
+            ["parameterized query", "prepared statement", "bind variables", "pass as parameters"],
+            ["f-string", "string formatting", "interpolation"],
         ],
     ),
     "medium": TaskDefinition(
         id="medium",
         task_type=TaskType.MEDIUM,
         has_grader=True,
-        title="Suggest optimization",
+        title="Identify Async Race Condition",
         code=(
-            "def squared_evens(numbers):\n"
-            "    result = []\n"
-            "    for n in numbers:\n"
-            "        if n % 2 == 0:\n"
-            "            result.append(n * n)\n"
-            "    return result\n"
+            "import asyncio\n\n"
+            "async def update_balance(user_id, amount, db_client):\n"
+            "    balance = await db_client.get_balance(user_id)\n"
+            "    new_balance = balance + amount\n"
+            "    await asyncio.sleep(0.05)  # Simulate latency\n"
+            "    await db_client.set_balance(user_id, new_balance)\n"
         ),
         instructions=(
-            "Suggest performance or readability optimizations while preserving behavior. "
-            "Mention at least one concrete optimization strategy and why it helps."
+            "Review this asynchronous money transfer logic. Identify the concurrency bug, "
+            "explain why it occurs, and suggest a robust solution."
         ),
         criteria=[
-            ["list comprehension", "comprehension", "single expression"],
-            ["same behavior", "preserve behavior", "without changing output", "no behavior change", "identical output"],
-            ["readability", "cleaner", "more concise", "more readable", "clearer"],
+            ["race condition", "data race", "concurrency issue"],
+            ["lock", "mutex", "transaction", "atomic"],
+            [".sleep", "await", "interleaving"],
         ],
     ),
     "hard": TaskDefinition(
         id="hard",
         task_type=TaskType.HARD,
         has_grader=True,
-        title="Full code review with scoring",
+        title="Comprehensive FastAPI Endpoint Review",
         code=(
-            "def average(values):\n"
-            "    total = 0\n"
-            "    for i in range(len(values)):\n"
-            "        total += values[i]\n"
-            "    return total / len(values)\n\n"
-            "def process(data):\n"
-            "    try:\n"
-            "        return [average(x) for x in data]\n"
-            "    except Exception:\n"
-            "        return []\n"
+            "from fastapi import FastAPI\n"
+            "import requests\n"
+            "import json\n\n"
+            "app = FastAPI()\n\n"
+            "@app.post('/webhook')\n"
+            "def handle_webhook(payload: dict):\n"
+            "    if not payload.get('user_id'): return {'error': 'missing id'}\n"
+            "    res = requests.post('http://internal-log.local/audit', json=payload)\n"
+            "    with open('audit.log', 'a') as f:\n"
+            "        f.write(json.dumps(res.json()) + '\\n')\n"
+            "    return {'status': 'processed'}\n"
         ),
         instructions=(
-            "Perform a full code review covering correctness, robustness, efficiency, and maintainability. "
+            "Perform a comprehensive code review covering performance, architecture, resilience, and correctness. "
             "Include an explicit overall score in the review."
         ),
         criteria=[
-            ["division by zero", "empty list", "len(values) == 0", "guard against empty values"],
-            ["broad exception", "except Exception", "too broad catch", "catching all exceptions"],
-            ["iterate directly", "avoid range(len", "pythonic loop", "loop over values directly"],
-            ["type hints", "docstring", "tests", "unit tests", "annotations"],
+            ["blocking", "synchronous call", "requests.post", "async def", "httpx"],
+            ["file i/o", "blocking i/o", "open('audit.log", "aiofiles"],
+            ["error handling", "exception", "res.json() fails", "status code", "try/except"],
+            ["hardcoded", "config", "environment variable", "http://internal-log.local"],
             ["overall score", "score", "rating", "final score", "overall rating"],
         ],
     ),

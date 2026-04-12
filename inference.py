@@ -70,20 +70,13 @@ def _optional_env(name: str, default: str) -> str:
 
 
 def _provider_defaults(provider: str) -> tuple[str, str, str, str]:
-    provider_name = provider.lower().strip()
-    if provider_name == "groq":
-        return (
-            "groq",
-            _optional_env("GROQ_API_BASE_URL", "https://api.groq.com/openai/v1"),
-            _optional_env("GROQ_MODEL", "llama-3.3-70b-versatile"),
-            os.getenv("GROQ_API_KEY") or "",
-        )
-
+    # Strictly respect the evaluator's injected environment variables to proxy API traffic.
+    # Fallback to HF_TOKEN if API_KEY isn't present to satisfy diverse previous validation docs.
     return (
-        "meta",
-        _optional_env("META_API_BASE_URL", "https://api.openai.com/v1"),
-        _optional_env("META_MODEL", "gpt-4o-mini"),
-        os.getenv("META_API_KEY") or "",
+        "eval",
+        _optional_env("API_BASE_URL", "https://api.openai.com/v1"),
+        _optional_env("MODEL_NAME", "gpt-4o-mini"),
+        os.getenv("API_KEY") or os.getenv("HF_TOKEN") or "",
     )
 
 
@@ -102,17 +95,18 @@ def _build_prompt(task_id: str, instructions: str, code: str) -> str:
 def _dry_run_review(task_id: str) -> str:
     if task_id == "easy":
         return (
-            "There is a syntax error: missing colon in the function definition. "
-            "Fix with def add_numbers(a, b):"
+            "This code is vulnerable to SQL injection since it uses an f-string to construct queries. "
+            "Use a parameterized query to safely pass variables to the database."
         )
     if task_id == "medium":
         return (
-            "Use a list comprehension to preserve behavior and improve readability: "
-            "return [n * n for n in numbers if n % 2 == 0]."
+            "There's a race condition where concurrent calls can overwrite the balance. "
+            "You should use an async lock or database transaction to ensure atomicity instead of an unprotected await."
         )
     return (
-        "Code review: handle empty list to prevent division by zero, avoid broad except Exception, "
-        "iterate directly over values, add type hints and tests. Overall score: 0.86 (on a 0–1 scale)."
+        "The async def function contains blocking requests calls which ruin concurrency. "
+        "Also it uses synchronous file i/o and lacks proper error handling on res.json(). "
+        "Remove the hardcoded http://internal-log.local. Overall score: 0.86 (on a 0-1 scale)."
     )
 
 

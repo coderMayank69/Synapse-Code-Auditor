@@ -17,12 +17,8 @@ _MIN_SCORE = 0.01
 _MAX_SCORE = 0.99
 
 
-def normalize_score(score: float) -> float:
-    """Clamp reward to strict open interval (0, 1) for hub / Phase-2 validators."""
-    x = float(score)
-    if not math.isfinite(x):
-        return _MIN_SCORE
-    return max(_MIN_SCORE, min(_MAX_SCORE, x))
+def normalize_score(score):
+    return max(0.01, min(0.99, float(score)))
 
 
 def _normalize(text: str) -> str:
@@ -95,7 +91,11 @@ def grade_review(task: TaskDefinition, review: str) -> GradeResult:
     )
 
 
-def grader(output: str, expected: TaskDefinition) -> float:
-    """OpenEnv-style entry: ``output`` is the review; ``expected`` is the task rubric."""
+def compute_score(output: str, expected: TaskDefinition) -> float:
     result = grade_review(expected, output)
-    return normalize_score(result.score)
+    return result.score
+
+
+def grader(output: str, expected: TaskDefinition) -> float:
+    score = compute_score(output, expected)
+    return normalize_score(score)

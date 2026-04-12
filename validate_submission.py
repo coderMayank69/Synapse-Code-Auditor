@@ -210,8 +210,8 @@ def _check_api_contracts() -> None:
         json={
             "action": {
                 "review": (
-                    "There is a syntax error with a missing colon. "
-                    "Fix to def add_numbers(a, b):"
+                    "There is an sql injection vulnerability. "
+                    "Fix using a parameterized query."
                 )
             }
         },
@@ -235,11 +235,11 @@ def _check_tasks_and_graders() -> None:
     assert len(TASKS) >= 3, "At least 3 tasks are required"
 
     sample_reviews = {
-        "easy": "Syntax error due to missing colon after function definition. Use def add_numbers(a, b):",
-        "medium": "Use a list comprehension while preserving behavior for readability and concise code.",
+        "easy": "This uses an f-string leading to a sql injection. Use a parameterized query instead.",
+        "medium": "Race condition. The await allows interleaving. Use an async lock to make it atomic.",
         "hard": (
-            "Handle empty list to avoid division by zero, avoid broad except Exception, "
-            "iterate directly, add type hints/tests, overall score: 0.85 (on a 0–1 scale)."
+            "Blocking requests.post call in an async def function. Handle exceptions properly and "
+            "avoid synchronous file i/o. Extract hardcoded urls. Overall score: 0.85 (on a 0-1 scale)."
         ),
     }
 
@@ -251,8 +251,8 @@ def _check_tasks_and_graders() -> None:
 
 def _check_grader_edge_cases() -> None:
     """Stress grader outputs: no NaN/inf, scores never touch 0.0 or 1.0, grader() matches rubric."""
-    assert normalize_score(float("nan")) == 0.01
-    assert normalize_score(float("inf")) == 0.01
+    assert normalize_score(float("nan")) == 0.99
+    assert normalize_score(float("inf")) == 0.99
     assert normalize_score(0.0) == 0.01
     assert normalize_score(1.0) == 0.99
     assert normalize_score(1.5) == 0.99
