@@ -69,6 +69,24 @@ def _optional_env(name: str, default: str) -> str:
     return value if value else default
 
 
+def _provider_defaults(provider: str) -> tuple[str, str, str, str]:
+    provider_name = provider.lower().strip()
+    if provider_name == "groq":
+        return (
+            "groq",
+            _optional_env("GROQ_API_BASE_URL", "https://api.groq.com/openai/v1"),
+            _optional_env("GROQ_MODEL", "llama-3.3-70b-versatile"),
+            os.getenv("GROQ_API_KEY") or "",
+        )
+
+    return (
+        "meta",
+        _optional_env("META_API_BASE_URL", "https://api.openai.com/v1"),
+        _optional_env("META_MODEL", "gpt-4o-mini"),
+        os.getenv("META_API_KEY") or "",
+    )
+
+
 def _build_prompt(task_id: str, instructions: str, code: str) -> str:
     return (
         "You are a code reviewer. Complete exactly the requested review task.\n"
@@ -229,20 +247,20 @@ def main() -> None:
     dry_run = os.getenv("DRY_RUN", "0") == "1"
 
     env_base_url = _optional_env("ENV_BASE_URL", "http://localhost:7860")
-    api_base_url = _optional_env("API_BASE_URL", "https://api.openai.com/v1")
-    model_name = _optional_env("MODEL_NAME", "gpt-4o-mini")
-    hf_token = os.getenv("HF_TOKEN")
+    provider = _optional_env("LLM_PROVIDER", "groq")
+    provider_name, api_base_url, model_name, api_key = _provider_defaults(provider)
 
-    if not hf_token:
+    if not api_key:
         dry_run = True
 
-    client = OpenAI(base_url=api_base_url, api_key=hf_token) if not dry_run else None
+    client = OpenAI(base_url=api_base_url, api_key=api_key) if not dry_run else None
 
     _emit(
         "START",
         {
             "event": "run_started",
             "timestamp": start_ts,
+            "provider": provider_name,
             "env_base_url": env_base_url,
             "api_base_url": api_base_url,
             "model_name": model_name,

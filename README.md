@@ -154,9 +154,13 @@ The baseline runner is `inference.py` at the project root. It uses the OpenAI cl
 
 Required environment variables for non-dry-run execution:
 
-- API_BASE_URL: OpenAI-compatible API URL
-- MODEL_NAME: model identifier
-- HF_TOKEN: API key used by OpenAI client
+- LLM_PROVIDER: set to `groq` for Groq models (default) or `meta` for Meta-compatible endpoints
+- GROQ_API_KEY: API key used by the client when `LLM_PROVIDER=groq`
+- GROQ_API_BASE_URL: Groq-compatible OpenAI base URL (defaults to `https://api.groq.com/openai/v1`)
+- GROQ_MODEL: model identifier for Groq (defaults to `llama-3.3-70b-versatile`)
+- META_API_KEY: API key used by the client when `LLM_PROVIDER=meta`
+- META_API_BASE_URL: Meta-compatible OpenAI base URL (defaults to `https://api.openai.com/v1`)
+- META_MODEL: model identifier for Meta (defaults to `gpt-4o-mini`)
 
 Optional:
 
@@ -180,12 +184,15 @@ python inference.py
 ### Required env var example
 
 ```bash
-export API_BASE_URL="https://api.openai.com/v1"
-export MODEL_NAME="gpt-4o-mini"
-export HF_TOKEN="your_token_here"
+export LLM_PROVIDER="groq"
+export GROQ_API_KEY="your_token_here"
+export GROQ_API_BASE_URL="https://api.groq.com/openai/v1"
+export GROQ_MODEL="llama-3.3-70b-versatile"
 export ENV_BASE_URL="http://localhost:7860"
 python inference.py
 ```
+
+If you want a Meta-compatible endpoint instead, set `LLM_PROVIDER="meta"` and use `META_API_KEY`, `META_API_BASE_URL`, and `META_MODEL`.
 
 ### Pre-submission validator
 
