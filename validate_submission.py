@@ -34,7 +34,10 @@ def _check_openenv_yaml(path: Path) -> None:
         raise AssertionError("openenv.yaml must include a tasks: list with at least 3 entries")
 
     tasks_with_grader = sum(
-        1 for t in tasks if isinstance(t, dict) and t.get("grader") is True
+        1
+        for t in tasks
+        if isinstance(t, dict)
+        and (t.get("grader") is True or t.get("has_grader") is True)
     )
     grading = data.get("grading")
     nested_graders: list = []
@@ -69,6 +72,28 @@ def _check_metadata_graders() -> None:
     assert graded >= 3, "metadata must expose at least 3 tasks with graders enabled"
 
 
+def _check_tasks_endpoint() -> None:
+    client = TestClient(app)
+    response = client.get("/tasks")
+    assert response.status_code == 200, f"/tasks returned {response.status_code}"
+    payload = response.json()
+    task_list = payload.get("tasks")
+    assert isinstance(task_list, list) and len(task_list) >= 3, "/tasks must list at least 3 tasks"
+    n = sum(
+        1
+        for t in task_list
+        if isinstance(t, dict)
+        and t.get("has_grader") is True
+        and isinstance(t.get("grader"), dict)
+        and t["grader"].get("enabled") is True
+    )
+    assert n >= 3, "/tasks must declare enabled deterministic graders for at least 3 tasks"
+
+    manifest = client.get("/openenv.yaml")
+    assert manifest.status_code == 200, f"/openenv.yaml returned {manifest.status_code}"
+    assert b"has_grader:" in manifest.content or b"grader:" in manifest.content
+
+
 def _check_api_contracts() -> None:
     client = TestClient(app)
 
@@ -93,6 +118,9 @@ def _check_api_contracts() -> None:
         },
     )
     assert step.status_code == 200, f"/step returned {step.status_code}"
+    reward = step.json().get("reward") or {}
+    score = float(reward.get("score", -1.0))
+    assert 0.0 < score < 1.0, f"/step reward score must be strictly in (0, 1), got {reward.get('score')}"
 
     state = client.get("/state")
     assert state.status_code == 200, f"/state returned {state.status_code}"
@@ -174,6 +202,7 @@ def main() -> None:
 
     _check_openenv_yaml(root / "openenv.yaml")
     _check_metadata_graders()
+    _check_tasks_endpoint()
     _check_api_contracts()
     _check_tasks_and_graders()
     _check_inference_script(root / "inference.py")

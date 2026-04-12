@@ -1,4 +1,5 @@
 spec_version: 1
+version: "1.0.0"
 name: synapse_code_auditor
 type: space
 runtime: fastapi
@@ -15,19 +16,31 @@ tasks:
     difficulty: easy
     max_steps: 1
     grader: true
+    has_grader: true
     score_range: [0.01, 0.99]
   - id: medium
     name: Suggest optimization
     difficulty: medium
     max_steps: 1
     grader: true
+    has_grader: true
     score_range: [0.01, 0.99]
   - id: hard
     name: Full code review with scoring
     difficulty: hard
     max_steps: 1
     grader: true
+    has_grader: true
     score_range: [0.01, 0.99]
+
+endpoints:
+  health: GET /health
+  metadata: GET /metadata
+  tasks: GET /tasks
+  manifest: GET /openenv.yaml
+  reset: POST /reset
+  step: POST /step
+  state: GET /state
 
 # Top-level graders (some validators scan for this key and `task:` aliases).
 graders:

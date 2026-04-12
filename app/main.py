@@ -1,7 +1,8 @@
+from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import FileResponse, PlainTextResponse
 
 from app.env import AICodeReviewEnvironment
 from app.models import (
@@ -15,6 +16,10 @@ from app.models import (
     StepResult,
 )
 from app.tasks import TASKS
+
+# Repo root (contains openenv.yaml) — /app in Docker, project dir locally.
+_ENV_ROOT = Path(__file__).resolve().parent.parent
+_OPENENV_PATH = _ENV_ROOT / "openenv.yaml"
 
 app = FastAPI(
     title="Synapse Code Auditor",
@@ -50,14 +55,50 @@ def metadata() -> dict[str, Any]:
         "tasks": [
             {
                 "task_id": task.id,
-                "task_type": task.task_type,
+                "task_type": task.task_type.value,
                 "has_grader": True,
                 "grader_enabled": True,
                 "criteria_count": len(task.criteria),
             }
             for task in TASKS.values()
         ],
+        "grading": {
+            "type": "automated",
+            "deterministic": True,
+            "tasks_with_graders": len(TASKS),
+        },
     }
+
+
+@app.get("/tasks")
+def list_tasks() -> dict[str, Any]:
+    """Task catalog with grader flags (used by hub validators and OpenEnv clients)."""
+    return {
+        "task_count": len(TASKS),
+        "tasks": [
+            {
+                "task_id": task.id,
+                "task_type": task.task_type.value,
+                "title": task.title,
+                "has_grader": True,
+                "grader": {"type": "deterministic", "enabled": True},
+                "score_range": {"min_exclusive": 0.0, "max_exclusive": 1.0},
+            }
+            for task in TASKS.values()
+        ],
+    }
+
+
+@app.get("/openenv.yaml")
+def openenv_manifest() -> FileResponse:
+    """Serve the OpenEnv manifest so validators can read it from the running Space."""
+    if not _OPENENV_PATH.is_file():
+        raise HTTPException(status_code=404, detail="openenv.yaml not found in environment root")
+    return FileResponse(
+        _OPENENV_PATH,
+        media_type="application/yaml",
+        filename="openenv.yaml",
+    )
 
 
 @app.get("/schema")
