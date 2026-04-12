@@ -20,6 +20,35 @@ def _check_openenv_yaml(path: Path) -> None:
     if missing:
         raise AssertionError(f"openenv.yaml missing keys: {missing}")
 
+    try:
+        import yaml
+    except ImportError as exc:  # pragma: no cover
+        raise AssertionError("PyYAML is required to validate openenv.yaml structure") from exc
+
+    data = yaml.safe_load(content)
+    if not isinstance(data, dict):
+        raise AssertionError("openenv.yaml must parse to a mapping")
+
+    tasks = data.get("tasks")
+    if not isinstance(tasks, list) or len(tasks) < 3:
+        raise AssertionError("openenv.yaml must include a tasks: list with at least 3 entries")
+
+    tasks_with_grader = sum(
+        1 for t in tasks if isinstance(t, dict) and t.get("grader") is True
+    )
+    grading = data.get("grading")
+    graders_list: list = []
+    if isinstance(grading, dict):
+        g = grading.get("graders")
+        if isinstance(g, list):
+            graders_list = g
+
+    if tasks_with_grader < 3 and len(graders_list) < 3:
+        raise AssertionError(
+            "openenv.yaml must declare graders for at least 3 tasks "
+            "(each task: grader: true, and/or grading.graders with 3+ entries)"
+        )
+
 
 def _check_api_contracts() -> None:
     client = TestClient(app)

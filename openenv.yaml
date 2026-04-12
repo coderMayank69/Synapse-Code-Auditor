@@ -4,3 +4,38 @@ type: space
 runtime: fastapi
 app: app.main:app
 port: 7860
+
+description: >
+  OpenEnv environment for deterministic AI code review evaluation across three tasks
+  (easy, medium, hard) with automated deterministic graders. Per-task scores are in (0, 1).
+
+tasks:
+  - id: easy
+    name: Detect syntax errors
+    difficulty: easy
+    max_steps: 1
+    grader: true
+    score_range: [0.01, 0.99]
+  - id: medium
+    name: Suggest optimization
+    difficulty: medium
+    max_steps: 1
+    grader: true
+    score_range: [0.01, 0.99]
+  - id: hard
+    name: Full code review with scoring
+    difficulty: hard
+    max_steps: 1
+    grader: true
+    score_range: [0.01, 0.99]
+
+grading:
+  type: automated
+  deterministic: true
+  graders:
+    - task_id: easy
+      type: deterministic
+    - task_id: medium
+      type: deterministic
+    - task_id: hard
+      type: deterministic

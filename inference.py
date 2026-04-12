@@ -27,6 +27,14 @@ class TaskRun:
     latency_s: float
 
 
+def _task_run_succeeded(run: TaskRun) -> bool:
+    """False when reset/step failed; scores stay in (0, 1) for platform validators."""
+    return not (
+        run.rationale.startswith("reset_failed:")
+        or run.rationale.startswith("step_failed:")
+    )
+
+
 class _TestResponse:
     def __init__(self, status_code: int, payload: dict[str, Any]) -> None:
         self.status_code = status_code
@@ -182,7 +190,7 @@ def _run_task(env_base_url: str, client: OpenAI | None, model_name: str, task_id
     except Exception as exc:
         return TaskRun(
             task_id=task_id,
-            score=0.0,
+            score=0.01,
             rationale=f"reset_failed: {exc}",
             latency_s=round(time.perf_counter() - t0, 3),
         )
@@ -203,7 +211,7 @@ def _run_task(env_base_url: str, client: OpenAI | None, model_name: str, task_id
     except Exception as exc:
         return TaskRun(
             task_id=task_id,
-            score=0.0,
+            score=0.01,
             rationale=f"step_failed: {exc}",
             latency_s=round(time.perf_counter() - t0, 3),
         )
@@ -263,7 +271,7 @@ def main() -> None:
 
         avg_score = round(sum(item.score for item in results) / len(results), 4)
         total_latency = round(sum(item.latency_s for item in results), 3)
-        status = "ok" if all(item.score > 0 for item in results) else "partial"
+        status = "ok" if results and all(_task_run_succeeded(r) for r in results) else "partial"
 
         _emit(
             "END",
