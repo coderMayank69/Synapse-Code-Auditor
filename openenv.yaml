@@ -29,6 +29,18 @@ tasks:
     grader: true
     score_range: [0.01, 0.99]
 
+# Top-level graders (some validators scan for this key and `task:` aliases).
+graders:
+  - task: easy
+    enabled: true
+    type: deterministic
+  - task: medium
+    enabled: true
+    type: deterministic
+  - task: hard
+    enabled: true
+    type: deterministic
+
 grading:
   type: automated
   deterministic: true

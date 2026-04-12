@@ -37,17 +37,36 @@ def _check_openenv_yaml(path: Path) -> None:
         1 for t in tasks if isinstance(t, dict) and t.get("grader") is True
     )
     grading = data.get("grading")
-    graders_list: list = []
+    nested_graders: list = []
     if isinstance(grading, dict):
         g = grading.get("graders")
         if isinstance(g, list):
-            graders_list = g
+            nested_graders = g
 
-    if tasks_with_grader < 3 and len(graders_list) < 3:
+    root_graders = data.get("graders")
+    root_graders_len = len(root_graders) if isinstance(root_graders, list) else 0
+
+    grader_slots = max(tasks_with_grader, len(nested_graders), root_graders_len)
+    if grader_slots < 3:
         raise AssertionError(
             "openenv.yaml must declare graders for at least 3 tasks "
-            "(each task: grader: true, and/or grading.graders with 3+ entries)"
+            "(each task: grader: true, top-level graders:, and/or grading.graders)"
         )
+
+
+def _check_metadata_graders() -> None:
+    client = TestClient(app)
+    response = client.get("/metadata")
+    assert response.status_code == 200, f"/metadata returned {response.status_code}"
+    payload = response.json()
+    tasks = payload.get("tasks")
+    assert isinstance(tasks, list) and len(tasks) >= 3, "metadata.tasks must list at least 3 tasks"
+    graded = sum(
+        1
+        for t in tasks
+        if isinstance(t, dict) and (t.get("has_grader") is True or t.get("grader_enabled") is True)
+    )
+    assert graded >= 3, "metadata must expose at least 3 tasks with graders enabled"
 
 
 def _check_api_contracts() -> None:
@@ -141,11 +160,20 @@ def _run_inference_dry_run(root: Path) -> None:
     assert sum(1 for line in lines if line.startswith("[STEP]")) >= 3, "Expected >=3 [STEP] logs"
     assert any(line.startswith("[END]") for line in lines), "Missing [END] log"
 
+    for line in lines:
+        if not line.startswith("[STEP]"):
+            continue
+        payload_text = line.split("]", 1)[1].strip()
+        step_payload = json.loads(payload_text)
+        score = float(step_payload["score"])
+        assert 0.0 < score < 1.0, f"inference STEP score must be strictly in (0, 1), got {score}"
+
 
 def main() -> None:
     root = Path(__file__).resolve().parent
 
     _check_openenv_yaml(root / "openenv.yaml")
+    _check_metadata_graders()
     _check_api_contracts()
     _check_tasks_and_graders()
     _check_inference_script(root / "inference.py")

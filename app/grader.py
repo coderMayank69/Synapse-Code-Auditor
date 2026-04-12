@@ -62,6 +62,9 @@ def grade_review(task: TaskDefinition, review: str) -> GradeResult:
     raw_score = coverage_score - total_penalty
     # Keep scores strictly within (0, 1) for evaluator compatibility.
     final_score = max(_MIN_SCORE, min(_MAX_SCORE, raw_score))
+    rounded = round(final_score, 4)
+    # Guard float edge cases so reward never equals exactly 0.0 or 1.0 after rounding.
+    score = max(_MIN_SCORE, min(_MAX_SCORE, rounded))
 
     rationale = (
         f"Coverage={coverage_score:.2f}; Penalty={total_penalty:.2f}; "
@@ -69,7 +72,7 @@ def grade_review(task: TaskDefinition, review: str) -> GradeResult:
     )
 
     return GradeResult(
-        score=round(final_score, 4),
+        score=score,
         matched_criteria=matched_criteria,
         missed_criteria=missed_criteria,
         penalties=penalties,

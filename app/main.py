@@ -52,6 +52,7 @@ def metadata() -> dict[str, Any]:
                 "task_id": task.id,
                 "task_type": task.task_type,
                 "has_grader": True,
+                "grader_enabled": True,
                 "criteria_count": len(task.criteria),
             }
             for task in TASKS.values()
