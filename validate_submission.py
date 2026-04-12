@@ -8,7 +8,9 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
-from app.grader import grade_review
+import math
+
+from app.grader import grade_review, grader, normalize_score
 from app.main import app
 from app.tasks import TASKS
 
@@ -187,7 +189,7 @@ def _check_tasks_and_graders() -> None:
         "medium": "Use a list comprehension while preserving behavior for readability and concise code.",
         "hard": (
             "Handle empty list to avoid division by zero, avoid broad except Exception, "
-            "iterate directly, add type hints/tests, overall score: 0.85/1.0."
+            "iterate directly, add type hints/tests, overall score: 0.85 (on a 0–1 scale)."
         ),
     }
 
@@ -195,6 +197,29 @@ def _check_tasks_and_graders() -> None:
         review = sample_reviews.get(task_id, "Provide relevant code review feedback with score.")
         result = grade_review(task, review)
         assert 0.0 < result.score < 1.0, f"Score out of strict range for {task_id}: {result.score}"
+
+
+def _check_grader_edge_cases() -> None:
+    """Stress grader outputs: no NaN/inf, scores never touch 0.0 or 1.0, grader() matches rubric."""
+    assert normalize_score(float("nan")) == 0.01
+    assert normalize_score(float("inf")) == 0.01
+    assert normalize_score(0.0) == 0.01
+    assert normalize_score(1.0) == 0.99
+    assert normalize_score(1.5) == 0.99
+
+    junk = (
+        "weather recipe movie travel football politics unrelated filler text "
+        "with enough tokens to avoid the too_short penalty entirely here"
+    )
+    emptyish = "a " * 30
+
+    for _task_id, task in TASKS.items():
+        for review in (junk, emptyish, "syntax error " * 20):
+            result = grade_review(task, review)
+            s = float(result.score)
+            assert math.isfinite(s), f"non-finite score for {task.id}: {s}"
+            assert 0.0 < s < 1.0, f"score out of range for {task.id}: {s}"
+            assert grader(review, task) == s
 
 
 def _check_inference_script(path: Path) -> None:
@@ -261,6 +286,7 @@ def main() -> None:
     _check_tasks_endpoint()
     _check_api_contracts()
     _check_tasks_and_graders()
+    _check_grader_edge_cases()
     _check_inference_script(root / "inference.py")
     _run_inference_dry_run(root)
 

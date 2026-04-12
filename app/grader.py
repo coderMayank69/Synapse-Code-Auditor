@@ -1,3 +1,4 @@
+import math
 import re
 
 from app.models import GradeResult, TaskDefinition
@@ -16,6 +17,14 @@ _MIN_SCORE = 0.01
 _MAX_SCORE = 0.99
 
 
+def normalize_score(score: float) -> float:
+    """Clamp reward to strict open interval (0, 1) for hub / Phase-2 validators."""
+    x = float(score)
+    if not math.isfinite(x):
+        return _MIN_SCORE
+    return max(_MIN_SCORE, min(_MAX_SCORE, x))
+
+
 def _normalize(text: str) -> str:
     return " ".join(re.findall(r"[a-z0-9_+.#-]+", text.lower()))
 
@@ -26,6 +35,15 @@ def _contains_phrase(text: str, phrase: str) -> bool:
 
 def grade_review(task: TaskDefinition, review: str) -> GradeResult:
     normalized_review = _normalize(review)
+    n_groups = len(task.criteria)
+    if n_groups == 0:
+        return GradeResult(
+            score=normalize_score(0.5),
+            matched_criteria=[],
+            missed_criteria=[],
+            penalties={"no_criteria": 0.5},
+            rationale="No grading criteria configured; neutral partial score.",
+        )
 
     matched_criteria: list[str] = []
     missed_criteria: list[str] = []
@@ -38,7 +56,7 @@ def grade_review(task: TaskDefinition, review: str) -> GradeResult:
         else:
             missed_criteria.append(canonical)
 
-    coverage_score = len(matched_criteria) / len(task.criteria)
+    coverage_score = len(matched_criteria) / n_groups
 
     penalties: dict[str, float] = {}
 
@@ -60,15 +78,12 @@ def grade_review(task: TaskDefinition, review: str) -> GradeResult:
 
     total_penalty = sum(penalties.values())
     raw_score = coverage_score - total_penalty
-    # Keep scores strictly within (0, 1) for evaluator compatibility.
-    final_score = max(_MIN_SCORE, min(_MAX_SCORE, raw_score))
-    rounded = round(final_score, 4)
-    # Guard float edge cases so reward never equals exactly 0.0 or 1.0 after rounding.
-    score = max(_MIN_SCORE, min(_MAX_SCORE, rounded))
+    score = normalize_score(round(raw_score, 4))
 
+    cov_display = min(coverage_score, _MAX_SCORE)
     rationale = (
-        f"Coverage={coverage_score:.2f}; Penalty={total_penalty:.2f}; "
-        f"Matched={len(matched_criteria)}/{len(task.criteria)}"
+        f"Coverage={cov_display:.2f}; Penalty={total_penalty:.2f}; "
+        f"Matched={len(matched_criteria)}/{n_groups}"
     )
 
     return GradeResult(
@@ -78,3 +93,9 @@ def grade_review(task: TaskDefinition, review: str) -> GradeResult:
         penalties=penalties,
         rationale=rationale,
     )
+
+
+def grader(output: str, expected: TaskDefinition) -> float:
+    """OpenEnv-style entry: ``output`` is the review; ``expected`` is the task rubric."""
+    result = grade_review(expected, output)
+    return normalize_score(result.score)

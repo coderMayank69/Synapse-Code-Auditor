@@ -94,7 +94,7 @@ def _dry_run_review(task_id: str) -> str:
         )
     return (
         "Code review: handle empty list to prevent division by zero, avoid broad except Exception, "
-        "iterate directly over values, add type hints and tests. Overall score: 0.86/1.0."
+        "iterate directly over values, add type hints and tests. Overall score: 0.86 (on a 0–1 scale)."
     )
 
 

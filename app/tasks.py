@@ -79,6 +79,9 @@ TASKS: dict[str, TaskDefinition] = {
 
 ORDERED_TASK_IDS: list[str] = ["easy", "medium", "hard"]
 
+# Explicit curriculum ordering for multi-task episodes and static validators.
+ORDERED_TASK_DEFINITIONS: list[TaskDefinition] = [TASKS[tid] for tid in ORDERED_TASK_IDS]
+
 
 def get_task(task_id: str) -> TaskDefinition:
     if task_id not in TASKS:
