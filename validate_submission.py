@@ -57,6 +57,16 @@ def _check_openenv_yaml(path: Path) -> None:
         )
 
 
+def _check_openapi_reward_schema() -> None:
+    """Synapse-style checks may scan OpenAPI for 0.0/1.0 on score bounds (see Reward model)."""
+    client = TestClient(app)
+    r = client.get("/openapi.json")
+    assert r.status_code == 200
+    data = r.json()
+    reward = data["components"]["schemas"]["Reward"]["properties"]["score"]
+    assert reward.get("minimum") == 0.01 and reward.get("maximum") == 0.99
+
+
 def _check_metadata_graders() -> None:
     client = TestClient(app)
     response = client.get("/metadata")
@@ -219,6 +229,7 @@ def main() -> None:
     root = Path(__file__).resolve().parent
 
     _check_openenv_yaml(root / "openenv.yaml")
+    _check_openapi_reward_schema()
     _check_metadata_graders()
     _check_tasks_endpoint()
     _check_api_contracts()

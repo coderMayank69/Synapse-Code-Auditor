@@ -23,7 +23,10 @@ class Action(BaseModel):
 
 
 class Reward(BaseModel):
-    score: float = Field(gt=0.0, lt=1.0)
+    # Align with grader clamp [0.01, 0.99]. Using ge/le makes OpenAPI emit
+    # minimum/maximum 0.01/0.99 — not exclusiveMinimum 0.0 / exclusiveMaximum 1.0,
+    # which some hub validators misread as forbidden score literals.
+    score: float = Field(ge=0.01, le=0.99)
     matched_criteria: list[str]
     missed_criteria: list[str]
     penalties: dict[str, float]
@@ -43,7 +46,7 @@ class EnvState(BaseModel):
     current_task_type: TaskType | None
     status: str
     total_steps: int
-    last_reward: float | None
+    last_reward: float | None = Field(default=None, ge=0.01, le=0.99)
     history: list[dict[str, Any]]
 
 
@@ -75,7 +78,7 @@ class TaskDefinition(BaseModel):
 
 
 class GradeResult(BaseModel):
-    score: float = Field(gt=0.0, lt=1.0)
+    score: float = Field(ge=0.01, le=0.99)
     matched_criteria: list[str]
     missed_criteria: list[str]
     penalties: dict[str, float]
