@@ -82,7 +82,9 @@ def list_tasks() -> dict[str, Any]:
                 "title": task.title,
                 "has_grader": True,
                 "grader": {"type": "deterministic", "enabled": True},
-                "score_range": {"min_exclusive": 0.0, "max_exclusive": 1.0},
+                # Use numeric bounds strictly inside (0, 1); some validators reject
+                # any 0.0/1.0 floats anywhere under task payloads.
+                "score_range": [0.01, 0.99],
             }
             for task in TASKS.values()
         ],

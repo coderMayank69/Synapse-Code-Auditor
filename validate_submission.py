@@ -93,6 +93,24 @@ def _check_tasks_endpoint() -> None:
     assert manifest.status_code == 200, f"/openenv.yaml returned {manifest.status_code}"
     assert b"has_grader:" in manifest.content or b"grader:" in manifest.content
 
+    def _floats_bad(obj: object) -> list[float]:
+        bad: list[float] = []
+        if isinstance(obj, float) and (obj == 0.0 or obj == 1.0):
+            bad.append(obj)
+        elif isinstance(obj, dict):
+            for v in obj.values():
+                bad.extend(_floats_bad(v))
+        elif isinstance(obj, list):
+            for item in obj:
+                bad.extend(_floats_bad(item))
+        return bad
+
+    for t in task_list:
+        if isinstance(t, dict) and _floats_bad(t):
+            raise AssertionError(
+                f"/tasks task payload must not contain 0.0 or 1.0 floats (strict grader rules): {t}"
+            )
+
 
 def _check_api_contracts() -> None:
     client = TestClient(app)
