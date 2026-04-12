@@ -1,5 +1,5 @@
-[START] {"event":"run_started","env_base_url":"inprocess","task_count":3,"dry_run":true}
-[STEP] {"event":"task_completed","index":1,"task_id":"easy","score":0.99,"rationale":"Coverage=0.99; Penalty=0.00; Matched=3/3","latency_s":0.012}
-[STEP] {"event":"task_completed","index":2,"task_id":"medium","score":0.99,"rationale":"Coverage=0.99; Penalty=0.00; Matched=3/3","latency_s":0.005}
-[STEP] {"event":"task_completed","index":3,"task_id":"hard","score":0.86,"rationale":"Coverage=0.99; Penalty=0.13; Matched=5/5","latency_s":0.005}
-[END] {"event":"run_finished","average_score":0.9467,"tasks":[{"task_id":"easy","score":0.99},{"task_id":"medium","score":0.99},{"task_id":"hard","score":0.86}],"status":"ok"}
+[START] {"event":"run_started","timestamp":1776019891,"provider":"eval","env_base_url":"inprocess","api_base_url":"https://api.openai.com/v1","model_name":"gpt-4o-mini","task_count":3,"dry_run":true,"max_attempts":3}
+[STEP] {"event":"task_completed","index":1,"task_id":"easy","score":0.95,"rationale":"Coverage=0.99; Penalty=0.00; Matched=3/3","latency_s":0.047}
+[STEP] {"event":"task_completed","index":2,"task_id":"medium","score":0.95,"rationale":"Coverage=0.99; Penalty=0.00; Matched=3/3","latency_s":0.016}
+[STEP] {"event":"task_completed","index":3,"task_id":"hard","score":0.95,"rationale":"Coverage=0.99; Penalty=0.00; Matched=5/5","latency_s":0.015}
+[END] {"event":"run_finished","timestamp":1776019891,"average_score":0.95,"total_latency_s":0.078,"tasks":[{"task_id":"easy","score":0.95},{"task_id":"medium","score":0.95},{"task_id":"hard","score":0.95}],"status":"ok"}
