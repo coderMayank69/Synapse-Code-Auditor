@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import CodeAuditor from "./components/CodeAuditor";
 
 const MARQUEE_ITEMS = [
@@ -17,34 +17,41 @@ const MARQUEE_ITEMS = [
 ];
 
 export default function Home() {
-  const revealRef = useRef<IntersectionObserver | null>(null);
-  const cursorRef = useRef<HTMLDivElement>(null);
-  const cursorRingRef = useRef<HTMLDivElement>(null);
-  const [cursorPos, setCursorPos] = useState({ x: -100, y: -100 });
-  const [ringPos,   setRingPos]   = useState({ x: -100, y: -100 });
+  const revealRef    = useRef<IntersectionObserver | null>(null);
+  const dotRef       = useRef<HTMLDivElement>(null);
+  const ringRef      = useRef<HTMLDivElement>(null);
 
-  // Custom cursor
+  // ── Smooth cursor via direct DOM writes (no React re-renders) ──
   useEffect(() => {
     let raf: number;
-    let rx = -100, ry = -100;
     let tx = -100, ty = -100;
+    let rx = -100, ry = -100;
 
     const onMove = (e: MouseEvent) => { tx = e.clientX; ty = e.clientY; };
     window.addEventListener("mousemove", onMove);
 
     const loop = () => {
-      rx += (tx - rx) * 0.12;
-      ry += (ty - ry) * 0.12;
-      setCursorPos({ x: tx, y: ty });
-      setRingPos({ x: rx, y: ry });
+      // Dot follows instantly
+      if (dotRef.current) {
+        dotRef.current.style.transform = `translate(${tx - 5}px, ${ty - 5}px)`;
+      }
+      // Ring lags with lerp
+      rx += (tx - rx) * 0.14;
+      ry += (ty - ry) * 0.14;
+      if (ringRef.current) {
+        ringRef.current.style.transform = `translate(${rx - 17}px, ${ry - 17}px)`;
+      }
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
 
-    return () => { window.removeEventListener("mousemove", onMove); cancelAnimationFrame(raf); };
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      cancelAnimationFrame(raf);
+    };
   }, []);
 
-  // Scroll reveal
+  // ── Scroll reveal ──
   useEffect(() => {
     revealRef.current = new IntersectionObserver(
       (entries) => entries.forEach((e) => { if (e.isIntersecting) e.target.classList.add("in"); }),
@@ -58,19 +65,10 @@ export default function Home() {
 
   return (
     <>
-      {/* Custom cursor */}
-      <div
-        ref={cursorRef}
-        className="cursor"
-        style={{ left: cursorPos.x, top: cursorPos.y }}
-        aria-hidden="true"
-      />
-      <div
-        ref={cursorRingRef}
-        className="cursor-ring"
-        style={{ left: ringPos.x, top: ringPos.y }}
-        aria-hidden="true"
-      />
+      {/* Cursor — positioned via transform, no SSR inline styles */}
+      <div ref={dotRef}  className="cursor"      aria-hidden="true" />
+      <div ref={ringRef} className="cursor-ring" aria-hidden="true" />
+
 
       {/* ── NAV ── */}
       <nav className="nav" role="navigation" aria-label="Main navigation">
@@ -111,9 +109,7 @@ export default function Home() {
 
           <div className="hero-bottom">
             <p className="hero-desc">
-              <strong>Synapse</strong> detects bugs, security vulnerabilities, and performance
-              issues in AI-generated code — instantly. The code AI writes looks right.
-              Synapse knows when it isn&apos;t.
+              {"Synapse detects bugs, security vulnerabilities, and performance issues in AI-generated code — instantly. The code AI writes looks right. Synapse knows when it isn't."}
             </p>
             <div className="hero-actions">
               <a href="#demo" className="btn-accent" id="hero-demo">
@@ -155,10 +151,7 @@ export default function Home() {
                 EVERY<br />BUG.
               </h2>
             </div>
-            <p className="section-sub">
-              From critical SQL injections to subtle async race conditions —
-              Synapse catches what linters, tests, and code review miss.
-            </p>
+            <p className="section-sub">{"From critical SQL injections to subtle async race conditions — Synapse catches what linters, tests, and code review miss."}</p>
           </div>
 
           <div className="feat-table reveal">
@@ -209,10 +202,7 @@ export default function Home() {
                 TRY<br />NOW.
               </h2>
             </div>
-            <p className="section-sub">
-              Paste any snippet and get an expert-level review in seconds.
-              Load a real vulnerability from the samples.
-            </p>
+            <p className="section-sub">{"Paste any snippet and get an expert-level review in seconds. Load a real vulnerability from the samples."}</p>
           </div>
           <div className="reveal">
             <CodeAuditor />
@@ -262,10 +252,7 @@ export default function Home() {
                 ANY<br />IDE.
               </h2>
             </div>
-            <p className="section-sub">
-              Call the REST API from VS Code, JetBrains, Neovim, or any editor.
-              No plugin required.
-            </p>
+            <p className="section-sub">{"Call the REST API from VS Code, JetBrains, Neovim, or any editor. No plugin required."}</p>
           </div>
 
           <div className="ide-wrap reveal">
@@ -331,10 +318,7 @@ export default function Home() {
             SHIP CODE<br />
             THAT <em>WORKS</em>
           </h2>
-          <p className="cta-sub reveal">
-            Stop deploying hidden bugs from AI-generated code.
-            Synapse gives you the confidence to ship.
-          </p>
+          <p className="cta-sub reveal">{"Stop deploying hidden bugs from AI-generated code. Synapse gives you the confidence to ship."}</p>
           <div className="cta-btns reveal">
             <a href="#demo" className="btn-accent" id="cta-demo">
               Audit Now — Free →

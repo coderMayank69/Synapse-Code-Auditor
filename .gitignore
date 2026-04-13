@@ -13,14 +13,14 @@ build/
 *.log
 
 # Next.js / Node
-landing/node_modules/
-landing/.next/
-landing/out/
-landing/.env.local
-landing/.env.*.local
-landing/npm-debug.log*
-landing/yarn-debug.log*
-landing/yarn-error.log*
+client/node_modules/
+client/.next/
+client/out/
+client/.env.local
+client/.env.*.local
+client/npm-debug.log*
+client/yarn-debug.log*
+client/yarn-error.log*
 
 # Env files
 .env

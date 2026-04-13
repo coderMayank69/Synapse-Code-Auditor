@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Synapse — Server Maintenance</title>
+  <meta name="description" content="Synapse Code Auditor is temporarily down for maintenance. We'll be back soon." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:     #080808;
+      --bg-2:   #0f0f0f;
+      --line:   rgba(255,255,255,0.07);
+      --white:  #ffffff;
+      --gray-1: #999999;
+      --gray-2: #444444;
+      --accent: #e8ff47;
+      --font-d: 'Bebas Neue', sans-serif;
+      --font-b: 'Inter', system-ui, sans-serif;
+      --font-m: 'JetBrains Mono', monospace;
+    }
+
+    html { color-scheme: dark; scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--font-b);
+      background: var(--bg);
+      color: var(--white);
+      min-height: 100svh;
+      display: flex;
+      flex-direction: column;
+      -webkit-font-smoothing: antialiased;
+      overflow: hidden;
+      cursor: none;
+    }
+
+    /* ── Custom cursor ── */
+    #cursor     { position: fixed; width: 10px; height: 10px; background: var(--accent); border-radius: 50%; pointer-events: none; z-index: 9999; top: 0; left: 0; will-change: transform; mix-blend-mode: difference; }
+    #cursor-ring{ position: fixed; width: 34px; height: 34px; border: 1px solid rgba(255,255,255,0.25); border-radius: 50%; pointer-events: none; z-index: 9998; top: 0; left: 0; will-change: transform; }
+
+    /* ── Grid background ── */
+    .grid {
+      position: fixed; inset: 0; pointer-events: none;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
+      background-size: 80px 80px;
+      opacity: 0.5;
+    }
+
+    /* ── Glow ── */
+    .glow {
+      position: fixed;
+      bottom: -300px; left: 50%;
+      transform: translateX(-50%);
+      width: 800px; height: 600px;
+      background: radial-gradient(ellipse at center, rgba(232,255,71,0.07), transparent 65%);
+      pointer-events: none;
+    }
+
+    /* ── Layout ── */
+    nav {
+      position: relative; z-index: 10;
+      display: flex; align-items: center; justify-content: space-between;
+      height: 60px;
+      padding: 0 40px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(8,8,8,0.92);
+      backdrop-filter: blur(12px);
+    }
+
+    .nav-brand {
+      font-family: var(--font-d);
+      font-size: 20px;
+      letter-spacing: 0.05em;
+      color: var(--white);
+    }
+    .nav-brand span { color: var(--accent); }
+
+    .nav-status {
+      display: flex; align-items: center; gap: 8px;
+      font-family: var(--font-m);
+      font-size: 11px;
+      color: var(--gray-2);
+      letter-spacing: 0.1em;
+    }
+
+    .status-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: #ef4444;
+      box-shadow: 0 0 8px rgba(239,68,68,0.6);
+      animation: pulse-red 1.5s ease-in-out infinite;
+    }
+
+    @keyframes pulse-red {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.4; }
+    }
+
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      padding: 60px 40px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .eyebrow {
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .eyebrow::before {
+      content: '';
+      display: block;
+      width: 32px; height: 1px;
+      background: var(--accent);
+    }
+
+    h1 {
+      font-family: var(--font-d);
+      font-size: clamp(80px, 14vw, 200px);
+      line-height: 0.88;
+      letter-spacing: 0.01em;
+      color: var(--white);
+      margin-bottom: 48px;
+    }
+
+    h1 em { font-style: normal; color: var(--accent); }
+
+    .bottom-row {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 40px;
+      border-top: 1px solid var(--line);
+      padding-top: 32px;
+      flex-wrap: wrap;
+    }
+
+    .desc {
+      max-width: 420px;
+      font-size: 15px;
+      line-height: 1.8;
+      color: var(--gray-1);
+      font-weight: 300;
+    }
+
+    .desc strong { color: var(--white); font-weight: 500; }
+
+    .actions { display: flex; gap: 12px; flex-shrink: 0; flex-wrap: wrap; }
+
+    .btn-accent {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--accent); color: var(--bg);
+      padding: 12px 24px;
+      border-radius: 4px;
+      font-size: 11px; font-weight: 700;
+      letter-spacing: 0.12em; text-transform: uppercase;
+      text-decoration: none;
+      border: none; cursor: none;
+      transition: background 0.2s;
+    }
+    .btn-accent:hover { background: var(--white); }
+
+    .btn-ghost {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: transparent; color: var(--gray-1);
+      padding: 12px 20px;
+      border-radius: 4px;
+      font-size: 11px; font-weight: 600;
+      letter-spacing: 0.12em; text-transform: uppercase;
+      text-decoration: none;
+      border: 1px solid rgba(255,255,255,0.1);
+      cursor: none;
+      transition: all 0.2s;
+    }
+    .btn-ghost:hover { color: var(--white); border-color: rgba(255,255,255,0.25); }
+
+    /* ── Info strip ── */
+    .info-strip {
+      position: relative; z-index: 1;
+      display: flex;
+      border-top: 1px solid var(--line);
+      background: var(--bg-2);
+      flex-wrap: wrap;
+    }
+
+    .info-cell {
+      flex: 1;
+      min-width: 180px;
+      padding: 20px 40px;
+      border-right: 1px solid var(--line);
+    }
+    .info-cell:last-child { border-right: none; }
+
+    .info-label {
+      font-family: var(--font-m);
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--gray-2);
+      margin-bottom: 6px;
+    }
+
+    .info-val {
+      font-family: var(--font-d);
+      font-size: 22px;
+      color: var(--white);
+      letter-spacing: 0.05em;
+    }
+
+    .info-val.accent { color: var(--accent); }
+
+    /* ── Countdown ── */
+    #countdown {
+      font-family: var(--font-d);
+      font-size: 22px;
+      color: var(--accent);
+      letter-spacing: 0.05em;
+    }
+
+    /* ── Marquee ── */
+    .marquee-wrap {
+      overflow: hidden;
+      padding: 12px 0;
+      background: var(--bg);
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      position: relative; z-index: 1;
+    }
+
+    .marquee-track {
+      display: flex;
+      width: max-content;
+      animation: marquee 28s linear infinite;
+    }
+
+    .marquee-item {
+      display: flex; align-items: center; gap: 20px;
+      padding: 0 36px;
+      font-size: 11px; font-weight: 600;
+      letter-spacing: 0.15em; text-transform: uppercase;
+      color: var(--gray-2);
+      border-right: 1px solid var(--line);
+      white-space: nowrap;
+    }
+
+    .marquee-item .dot {
+      width: 4px; height: 4px;
+      border-radius: 50%;
+      background: var(--accent);
+      flex-shrink: 0;
+    }
+
+    @keyframes marquee {
+      from { transform: translateX(0); }
+      to   { transform: translateX(-50%); }
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 768px) {
+      nav { padding: 0 20px; }
+      main { padding: 40px 20px; }
+      h1 { font-size: clamp(64px, 18vw, 120px); }
+      .bottom-row { flex-direction: column; align-items: flex-start; }
+      .info-cell { padding: 16px 20px; }
+      body { overflow: auto; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Custom cursor -->
+  <div id="cursor"></div>
+  <div id="cursor-ring"></div>
+
+  <!-- Background -->
+  <div class="grid" aria-hidden="true"></div>
+  <div class="glow"  aria-hidden="true"></div>
+
+  <!-- Nav -->
+  <nav role="navigation" aria-label="Synapse">
+    <div class="nav-brand"><span>SYNAPSE</span> CODE AUDITOR</div>
+    <div class="nav-status">
+      <div class="status-dot" aria-hidden="true"></div>
+      MAINTENANCE
+    </div>
+  </nav>
+
+  <!-- Marquee -->
+  <div class="marquee-wrap" aria-hidden="true">
+    <div class="marquee-track" id="marquee-track"></div>
+  </div>
+
+  <!-- Main -->
+  <main>
+    <div class="eyebrow">System Status</div>
+
+    <h1>
+      WE'LL<br />
+      BE <em>BACK</em><br />
+      SOON.
+    </h1>
+
+    <div class="bottom-row">
+      <p class="desc">
+        <strong>Synapse</strong> is currently undergoing scheduled maintenance
+        or experiencing unexpected downtime. Our AI code auditor will be back online shortly.
+        Follow the GitHub for live updates.
+      </p>
+      <div class="actions">
+        <a href="https://github.com/coderMayank69/Synapse-Code-Auditor" class="btn-accent" target="_blank" rel="noopener noreferrer">
+          GitHub Updates ↗
+        </a>
+        <a href="https://huggingface.co/spaces/coderMayank69/Synapse_Code_Auditor" class="btn-ghost" target="_blank" rel="noopener noreferrer">
+          HuggingFace ↗
+        </a>
+      </div>
+    </div>
+  </main>
+
+  <!-- Info strip -->
+  <div class="info-strip" role="complementary" aria-label="Status information">
+    <div class="info-cell">
+      <div class="info-label">Status</div>
+      <div class="info-val accent">MAINTENANCE</div>
+    </div>
+    <div class="info-cell">
+      <div class="info-label">Estimated Downtime</div>
+      <div id="countdown" class="info-val">Calculating…</div>
+    </div>
+    <div class="info-cell">
+      <div class="info-label">Model</div>
+      <div class="info-val">LLaMA 3.3 70B</div>
+    </div>
+    <div class="info-cell">
+      <div class="info-label">Incident</div>
+      <div class="info-val">Scheduled</div>
+    </div>
+  </div>
+
+  <script>
+    // ── Custom cursor (direct DOM, no framework) ──
+    const dot  = document.getElementById('cursor');
+    const ring = document.getElementById('cursor-ring');
+    let tx = -100, ty = -100, rx = -100, ry = -100;
+
+    document.addEventListener('mousemove', e => { tx = e.clientX; ty = e.clientY; });
+
+    function animateCursor() {
+      dot.style.transform  = `translate(${tx - 5}px, ${ty - 5}px)`;
+      rx += (tx - rx) * 0.14;
+      ry += (ty - ry) * 0.14;
+      ring.style.transform = `translate(${rx - 17}px, ${ry - 17}px)`;
+      requestAnimationFrame(animateCursor);
+    }
+    animateCursor();
+
+    // ── Marquee ──
+    const ITEMS = [
+      'System Maintenance', 'AI Code Auditor', 'Back Soon',
+      'Security Analysis', 'Race Condition Detection', 'SQL Injection Audit',
+      'Architecture Review', 'LLaMA 3.3 70B', 'Groq Inference', 'Performance Audit',
+    ];
+    const track = document.getElementById('marquee-track');
+    [...ITEMS, ...ITEMS].forEach(text => {
+      const el = document.createElement('div');
+      el.className = 'marquee-item';
+      el.innerHTML = `<span class="dot"></span>${text}`;
+      track.appendChild(el);
+    });
+
+    // ── Countdown (counts up from page load — "we'll be back") ──
+    const start = Date.now();
+    function updateCountdown() {
+      const elapsed = Math.floor((Date.now() - start) / 1000);
+      const m = Math.floor(elapsed / 60);
+      const s = elapsed % 60;
+      document.getElementById('countdown').textContent = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+      setTimeout(updateCountdown, 1000);
+    }
+    updateCountdown();
+  </script>
+</body>
+</html>
