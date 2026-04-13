@@ -7,6 +7,10 @@ export const metadata: Metadata = {
     "Synapse detects bugs, security vulnerabilities, and performance issues in AI-generated code — instantly. Powered by LLaMA 3.3 70B via Groq.",
   keywords: "code auditor, AI code review, security, bug detection, SQL injection, race condition, Groq, LLaMA",
   authors: [{ name: "Synapse" }],
+  icons: {
+    icon: "/favicon.svg",
+    shortcut: "/favicon.svg",
+  },
   openGraph: {
     title: "Synapse Code Auditor",
     description: "AI code review that catches what humans miss.",
